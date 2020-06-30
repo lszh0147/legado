@@ -3,6 +3,7 @@ package io.legado.app.ui.config
 import android.app.Activity.RESULT_OK
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.documentfile.provider.DocumentFile
 import androidx.fragment.app.Fragment
 import io.legado.app.App
@@ -81,6 +82,8 @@ object BackupRestoreUi {
                     fragment.toast(R.string.restore_success)
                 }) {
                 val backupPath = fragment.getPrefString(PreferKey.backupPath)
+                Log.d("1111","restore bef backupPath"+backupPath)
+                Log.d("1111","restore backupPath?.isNotEmpty()"+backupPath?.isNotEmpty())
                 if (backupPath?.isNotEmpty() == true) {
                     if (backupPath.isContentPath()) {
                         val uri = Uri.parse(backupPath)

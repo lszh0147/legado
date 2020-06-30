@@ -43,7 +43,7 @@ object AppConfig {
         get() = App.INSTANCE.getPrefString(R.string.pk_requested_direction)
 
     var backupPath: String?
-        get() = App.INSTANCE.getPrefString(PreferKey.backupPath, Environment.getExternalStorageDirectory().path + File.separator + "Android"+File.separator + "AppData"+File.separator + "Yuedu3.0")
+        get() = App.INSTANCE.getPrefString(PreferKey.backupPath)
         set(value) {
             if (value.isNullOrEmpty()) {
                 App.INSTANCE.removePref(PreferKey.backupPath)

@@ -1,6 +1,8 @@
 package io.legado.app.ui.main
 
 import android.os.Bundle
+import android.os.Environment
+import android.util.Log
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.View
@@ -31,6 +33,7 @@ import kotlinx.android.synthetic.main.activity_import_book.*
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.sdk27.listeners.onClick
 import org.jetbrains.anko.toast
+import java.io.File
 
 class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
     BottomNavigationView.OnNavigationItemSelectedListener,
@@ -68,6 +71,13 @@ class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
                 }
                 .request()
         }
+
+        val backupPath = getPrefString(PreferKey.backupPath)
+        if (backupPath == null) {
+           var path111:String = Environment.getExternalStorageDirectory().path + File.separator + "Android"+ File.separator + "AppData"+ File.separator + "Yuedu3.0"
+            putPrefString(PreferKey.backupPath,path111 )
+        }
+
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {

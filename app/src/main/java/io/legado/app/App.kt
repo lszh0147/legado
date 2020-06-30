@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Build
+import android.os.Environment
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatDelegate
 import com.jeremyliao.liveeventbus.LiveEventBus
@@ -22,10 +24,8 @@ import io.legado.app.help.AppConfig
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.theme.ColorUtils
 import io.legado.app.lib.theme.ThemeStore
-import io.legado.app.utils.getCompatColor
-import io.legado.app.utils.getPrefInt
-import io.legado.app.utils.postEvent
-import io.legado.app.utils.putPrefInt
+import io.legado.app.utils.*
+import java.io.File
 
 @Suppress("DEPRECATION")
 class App : Application() {
@@ -61,6 +61,7 @@ class App : Application() {
             .autoClear(false)
 
         registerActivityLifecycleCallbacks(ActivityHelp)
+
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) {
