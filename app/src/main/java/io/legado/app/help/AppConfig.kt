@@ -2,10 +2,12 @@ package io.legado.app.help
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Environment
 import io.legado.app.App
 import io.legado.app.R
 import io.legado.app.constant.PreferKey
 import io.legado.app.utils.*
+import java.io.File
 
 object AppConfig {
 
@@ -41,7 +43,7 @@ object AppConfig {
         get() = App.INSTANCE.getPrefString(R.string.pk_requested_direction)
 
     var backupPath: String?
-        get() = App.INSTANCE.getPrefString(PreferKey.backupPath)
+        get() = App.INSTANCE.getPrefString(PreferKey.backupPath, Environment.getExternalStorageDirectory().path + File.separator + "Android"+File.separator + "AppData"+File.separator + "Yuedu3.0")
         set(value) {
             if (value.isNullOrEmpty()) {
                 App.INSTANCE.removePref(PreferKey.backupPath)
@@ -51,7 +53,7 @@ object AppConfig {
         }
 
     var isShowRSS: Boolean
-        get() = App.INSTANCE.getPrefBoolean(PreferKey.showRss, true)
+        get() = App.INSTANCE.getPrefBoolean(PreferKey.showRss, false)
         set(value) {
             App.INSTANCE.putPrefBoolean(PreferKey.showRss, value)
         }

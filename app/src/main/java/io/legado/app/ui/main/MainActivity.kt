@@ -3,6 +3,7 @@ package io.legado.app.ui.main
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MenuItem
+import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapter
@@ -15,6 +16,8 @@ import io.legado.app.base.VMBaseActivity
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.AppConfig
+import io.legado.app.help.permission.Permissions
+import io.legado.app.help.permission.PermissionsCompat
 import io.legado.app.help.storage.Backup
 import io.legado.app.lib.theme.ATH
 import io.legado.app.service.BaseReadAloudService
@@ -24,7 +27,9 @@ import io.legado.app.ui.main.my.MyFragment
 import io.legado.app.ui.main.rss.RssFragment
 import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.utils.*
+import kotlinx.android.synthetic.main.activity_import_book.*
 import kotlinx.android.synthetic.main.activity_main.*
+import org.jetbrains.anko.sdk27.listeners.onClick
 import org.jetbrains.anko.toast
 
 class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
@@ -53,11 +58,21 @@ class MainActivity : VMBaseActivity<MainViewModel>(R.layout.activity_main),
         bottom_navigation_view.setOnNavigationItemSelectedListener(this)
         bottom_navigation_view.setOnNavigationItemReselectedListener(this)
         bottom_navigation_view.menu.findItem(R.id.menu_rss).isVisible = AppConfig.isShowRSS
+
+        if (!PermissionsCompat.check(this, *Permissions.Group.STORAGE)) {
+            PermissionsCompat.Builder(this)
+                .addPermissions(*Permissions.Group.STORAGE)
+                .rationale(R.string.tip_perm_request_storage)
+                .onGranted {
+
+                }
+                .request()
+        }
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
         super.onPostCreate(savedInstanceState)
-        upVersion()
+//        upVersion()
         //自动更新书籍
         if (AppConfig.autoRefreshBook) {
             view_pager_main.postDelayed({

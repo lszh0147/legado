@@ -19,7 +19,7 @@
         app:iconSpaceReserved="false" />
 
     <io.legado.app.ui.widget.prefs.SwitchPreference
-        android:defaultValue="false"
+        android:defaultValue="true"
         android:title="@string/pt_hide_status_bar"
         android:key="hideStatusBar"
         app:iconSpaceReserved="false" />
@@ -31,7 +31,7 @@
         app:iconSpaceReserved="false" />
 
     <io.legado.app.ui.widget.prefs.SwitchPreference
-        android:defaultValue="false"
+        android:defaultValue="true"
         android:title="@string/pt_hide_navigation_bar"
         android:key="hideNavigationBar"
         app:iconSpaceReserved="false" />
@@ -73,7 +73,7 @@
         app:iconSpaceReserved="false" />
 
     <io.legado.app.ui.widget.prefs.SwitchPreference
-        android:defaultValue="false"
+        android:defaultValue="true"
         android:title="@string/selectText"
         android:key="selectText"
         app:iconSpaceReserved="false" />

@@ -4,6 +4,7 @@ import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
+import android.util.Log
 import androidx.annotation.Keep
 import io.legado.app.App
 import io.legado.app.R
@@ -129,7 +130,7 @@ object ReadBookConfig {
                 App.INSTANCE.putPrefInt(PreferKey.readStyleSelect, value)
             }
         }
-    var shareLayout = App.INSTANCE.getPrefBoolean(PreferKey.shareLayout)
+    var shareLayout = App.INSTANCE.getPrefBoolean(PreferKey.shareLayout,true)
         set(value) {
             field = value
             if (App.INSTANCE.getPrefBoolean(PreferKey.shareLayout) != value) {
@@ -153,8 +154,8 @@ object ReadBookConfig {
             }
         }
     var bodyIndent = "　".repeat(bodyIndentCount)
-    var hideStatusBar = App.INSTANCE.getPrefBoolean(PreferKey.hideStatusBar)
-    var hideNavigationBar = App.INSTANCE.getPrefBoolean(PreferKey.hideNavigationBar)
+    var hideStatusBar = App.INSTANCE.getPrefBoolean(PreferKey.hideStatusBar,true)
+    var hideNavigationBar = App.INSTANCE.getPrefBoolean(PreferKey.hideNavigationBar,true)
 
     private val config get() = if (shareLayout) getConfig(5) else durConfig
 
@@ -298,26 +299,26 @@ object ReadBookConfig {
     @Keep
     class Config(
         private var bgStr: String = "#EEEEEE",//白天背景
-        private var bgStrNight: String = "#000000",//夜间背景
+        private var bgStrNight: String = "宁静夜色.jpg",//夜间背景
         private var bgType: Int = 0,//白天背景类型 0:颜色, 1:assets图片, 2其它图片
-        private var bgTypeNight: Int = 0,//夜间背景类型
+        private var bgTypeNight: Int = 1,//夜间背景类型
         private var darkStatusIcon: Boolean = true,//白天是否暗色状态栏
         private var darkStatusIconNight: Boolean = false,//晚上是否暗色状态栏
         private var textColor: String = "#3E3D3B",//白天文字颜色
-        private var textColorNight: String = "#ADADAD",//夜间文字颜色
+        private var textColorNight: String = "#717171",//夜间文字颜色
         var textBold: Int = 0,//是否粗体字 0:正常, 1:粗体, 2:细体
-        var textSize: Int = 20,//文字大小
+        var textSize: Int = 33,//文字大小
         var letterSpacing: Float = 0.1f,//字间距
-        var lineSpacingExtra: Int = 12,//行间距
+        var lineSpacingExtra: Int = 10,//行间距
         var paragraphSpacing: Int = 4,//段距
         var titleMode: Int = 0,//标题居中
         var titleSize: Int = 0,
         var titleTopSpacing: Int = 0,
         var titleBottomSpacing: Int = 0,
-        var paddingBottom: Int = 6,
-        var paddingLeft: Int = 16,
-        var paddingRight: Int = 16,
-        var paddingTop: Int = 6,
+        var paddingBottom: Int = 10,
+        var paddingLeft: Int = 10,
+        var paddingRight: Int = 10,
+        var paddingTop: Int = 32,
         var headerPaddingBottom: Int = 0,
         var headerPaddingLeft: Int = 16,
         var headerPaddingRight: Int = 16,
@@ -330,6 +331,7 @@ object ReadBookConfig {
         var showFooterLine: Boolean = true
     ) {
         fun setBg(bgType: Int, bg: String) {
+
             if (AppConfig.isNightTheme) {
                 bgTypeNight = bgType
                 bgStrNight = bg

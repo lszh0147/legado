@@ -57,7 +57,7 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.ColorPreference
-            android:defaultValue="@color/md_pink_800"
+            android:defaultValue="@color/md_light_blue_600"
             android:key="colorAccent"
             android:summary="@string/day_color_accent"
             android:title="@string/accent"
@@ -92,7 +92,7 @@
         app:iconSpaceReserved="false">
 
         <io.legado.app.ui.widget.prefs.ColorPreference
-            android:defaultValue="@color/md_grey_900"
+            android:defaultValue="@color/md_grey_1000"
             android:key="colorPrimaryNight"
             android:summary="@string/night_primary"
             android:title="@string/primary"
@@ -100,7 +100,7 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.ColorPreference
-            android:defaultValue="@color/md_deep_orange_800"
+            android:defaultValue="@color/md_orange_500"
             android:key="colorAccentNight"
             android:summary="@string/night_accent"
             android:title="@string/accent"
@@ -108,7 +108,7 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.ColorPreference
-            android:defaultValue="@color/md_black_1000"
+            android:defaultValue="@color/md_grey_1000"
             android:key="colorBackgroundNight"
             android:summary="@string/night_background_color"
             android:title="@string/background_color"
@@ -116,7 +116,7 @@
             app:iconSpaceReserved="false" />
 
         <io.legado.app.ui.widget.prefs.ColorPreference
-            android:defaultValue="@color/md_grey_800"
+            android:defaultValue="@color/md_grey_900"
             android:key="colorBottomBackgroundNight"
             android:summary="@string/night_navbar_color"
             android:title="@string/navbar_color"

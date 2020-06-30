@@ -86,13 +86,13 @@ class App : Application() {
             }
             AppConfig.isNightTheme -> {
                 val primary =
-                    getPrefInt(PreferKey.cNPrimary, getCompatColor(R.color.md_blue_grey_600))
+                    getPrefInt(PreferKey.cNPrimary, getCompatColor(R.color.md_grey_1000))
                 val accent =
-                    getPrefInt(PreferKey.cNAccent, getCompatColor(R.color.md_deep_orange_800))
+                    getPrefInt(PreferKey.cNAccent, getCompatColor(R.color.md_orange_500))
                 var background =
-                    getPrefInt(PreferKey.cNBackground, getCompatColor(R.color.md_grey_900))
+                    getPrefInt(PreferKey.cNBackground, getCompatColor(R.color.md_grey_1000))
                 if (ColorUtils.isColorLight(background)) {
-                    background = getCompatColor(R.color.md_grey_900)
+                    background = getCompatColor(R.color.md_grey_1000)
                     putPrefInt(PreferKey.cNBackground, background)
                 }
                 var bBackground =
@@ -111,9 +111,9 @@ class App : Application() {
             }
             else -> {
                 val primary =
-                    getPrefInt(PreferKey.cPrimary, getCompatColor(R.color.md_indigo_800))
+                    getPrefInt(PreferKey.cPrimary, getCompatColor(R.color.md_light_blue_600))
                 val accent =
-                    getPrefInt(PreferKey.cAccent, getCompatColor(R.color.md_red_600))
+                    getPrefInt(PreferKey.cAccent, getCompatColor(R.color.md_light_blue_600))
                 var background =
                     getPrefInt(PreferKey.cBackground, getCompatColor(R.color.md_grey_100))
                 if (!ColorUtils.isColorLight(background)) {

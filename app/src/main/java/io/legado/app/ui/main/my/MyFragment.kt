@@ -31,6 +31,7 @@ import io.legado.app.ui.widget.prefs.SwitchPreference
 import io.legado.app.utils.*
 import kotlinx.android.synthetic.main.view_title_bar.*
 import org.jetbrains.anko.startActivity
+import java.lang.Exception
 
 class MyFragment : BaseFragment(R.layout.fragment_my_config), FileChooserDialog.CallBack {
 
@@ -88,10 +89,17 @@ class MyFragment : BaseFragment(R.layout.fragment_my_config), FileChooserDialog.
                     true
                 }
             }
-            if (AppConfig.isGooglePlay) {
+//            if (AppConfig.isGooglePlay) {
+//                findPreference<PreferenceCategory>("aboutCategory")
+//                    ?.removePreference(findPreference("donate"))
+//            }
+            try {
                 findPreference<PreferenceCategory>("aboutCategory")
                     ?.removePreference(findPreference("donate"))
+            }catch (e:Exception){
+
             }
+
         }
 
         override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

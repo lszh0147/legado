@@ -23,19 +23,20 @@ object SourceHelp {
 
     fun insertRssSource(vararg rssSources: RssSource) {
         rssSources.forEach { rssSource ->
-            if (is18Plus(rssSource.sourceUrl)) {
-                handler.post {
-                    App.INSTANCE.toast("${rssSource.sourceName}是18+网址,禁止导入.")
-                }
-            } else {
-                App.db.rssSourceDao().insert(rssSource)
-            }
+            App.db.rssSourceDao().insert(rssSource)
+//            if (is18Plus(rssSource.sourceUrl)) {
+//                handler.post {
+//                    App.INSTANCE.toast("${rssSource.sourceName}是18+网址,禁止导入.")
+//                }
+//            } else {
+//                App.db.rssSourceDao().insert(rssSource)
+//            }
         }
     }
 
     private fun is18Plus(url: String?): Boolean {
         url ?: return false
-        if (AppConfig.isGooglePlay) return false
+//        if (AppConfig.isGooglePlay) return false
         val baseUrl = NetworkUtils.getBaseUrl(url)
         baseUrl ?: return false
         try {
