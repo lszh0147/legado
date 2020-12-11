@@ -3,10 +3,16 @@ package io.legado.app.model.analyzeRule
 import android.annotation.SuppressLint
 import android.text.TextUtils
 import androidx.annotation.Keep
+import com.bumptech.glide.load.model.GlideUrl
+import com.bumptech.glide.load.model.LazyHeaders
 import io.legado.app.constant.AppConst.SCRIPT_ENGINE
+import io.legado.app.constant.AppConst.UA_NAME
 import io.legado.app.constant.AppPattern.EXP_PATTERN
 import io.legado.app.constant.AppPattern.JS_PATTERN
 import io.legado.app.data.entities.BaseBook
+import io.legado.app.data.entities.BookChapter
+import io.legado.app.help.AppConfig
+import io.legado.app.help.CacheManager
 import io.legado.app.help.JsExtensions
 import io.legado.app.help.http.*
 import io.legado.app.help.http.api.HttpGetApi
@@ -16,11 +22,12 @@ import okhttp3.FormBody
 import okhttp3.MediaType
 import okhttp3.RequestBody
 import retrofit2.Call
+import rxhttp.wrapper.param.RxHttp
+import rxhttp.wrapper.param.toByteArray
 import java.net.URLEncoder
 import java.util.*
 import java.util.regex.Pattern
 import javax.script.SimpleBindings
-
 
 /**
  * Created by GKF on 2018/1/24.
@@ -30,44 +37,51 @@ import javax.script.SimpleBindings
 @SuppressLint("DefaultLocale")
 class AnalyzeUrl(
     var ruleUrl: String,
-    key: String? = null,
-    page: Int? = null,
-    headerMapF: Map<String, String>? = null,
-    baseUrl: String? = null,
-    book: BaseBook? = null,
-    var useWebView: Boolean = false
+    val key: String? = null,
+    val page: Int? = null,
+    val speakText: String? = null,
+    val speakSpeed: Int? = null,
+    var baseUrl: String = "",
+    var useWebView: Boolean = false,
+    val book: BaseBook? = null,
+    val chapter: BookChapter? = null,
+    headerMapF: Map<String, String>? = null
 ) : JsExtensions {
     companion object {
+        val splitUrlRegex = Regex(",\\s*(?=\\{)")
         private val pagePattern = Pattern.compile("<(.*?)>")
         private val jsonType = MediaType.parse("application/json; charset=utf-8")
     }
 
-    private var baseUrl: String = ""
-    lateinit var url: String
-        private set
-    var path: String? = null
-        private set
+    var url: String = ""
     val headerMap = HashMap<String, String>()
+    var body: String? = null
+    var type: String? = null
+    private lateinit var urlHasQuery: String
     private var queryStr: String? = null
     private val fieldMap = LinkedHashMap<String, String>()
     private var charset: String? = null
-    private var body: String? = null
     private var requestBody: RequestBody? = null
     private var method = RequestMethod.GET
+    private var proxy: String? = null
 
     init {
-        baseUrl?.let {
-            this.baseUrl = it.split(",[^\\{]*".toRegex(), 1)[0]
+        baseUrl = baseUrl.split(splitUrlRegex, 1)[0]
+        headerMapF?.let {
+            headerMap.putAll(it)
+            if (it.containsKey("proxy")) {
+                proxy = it["proxy"]
+                headerMap.remove("proxy")
+            }
         }
-        headerMapF?.let { headerMap.putAll(it) }
         //替换参数
-        analyzeJs(key, page, book)
-        replaceKeyPageJs(key, page, book)
+        analyzeJs()
+        replaceKeyPageJs()
         //处理URL
         initUrl()
     }
 
-    private fun analyzeJs(key: String?, page: Int?, book: BaseBook?) {
+    private fun analyzeJs() {
         val ruleList = arrayListOf<String>()
         var start = 0
         var tmp: String
@@ -94,11 +108,11 @@ class AnalyzeUrl(
             when {
                 ruleStr.startsWith("<js>") -> {
                     ruleStr = ruleStr.substring(4, ruleStr.lastIndexOf("<"))
-                    ruleUrl = evalJS(ruleStr, ruleUrl, page, key, book) as String
+                    ruleUrl = evalJS(ruleStr, ruleUrl) as String
                 }
                 ruleStr.startsWith("@js", true) -> {
                     ruleStr = ruleStr.substring(4)
-                    ruleUrl = evalJS(ruleStr, ruleUrl, page, key, book) as String
+                    ruleUrl = evalJS(ruleStr, ruleUrl) as String
                 }
                 else -> ruleUrl = ruleStr.replace("@result", ruleUrl)
             }
@@ -108,7 +122,7 @@ class AnalyzeUrl(
     /**
      * 替换关键字,页数,JS
      */
-    private fun replaceKeyPageJs(key: String?, page: Int?, book: BaseBook?) {
+    private fun replaceKeyPageJs() {
         //page
         page?.let {
             val matcher = pagePattern.matcher(ruleUrl)
@@ -124,16 +138,22 @@ class AnalyzeUrl(
         //js
         if (ruleUrl.contains("{{") && ruleUrl.contains("}}")) {
             var jsEval: Any
-            val sb = StringBuffer(ruleUrl.length)
-            val simpleBindings = SimpleBindings()
-            simpleBindings["java"] = this
-            simpleBindings["baseUrl"] = baseUrl
-            simpleBindings["page"] = page
-            simpleBindings["key"] = key
-            simpleBindings["book"] = book
+            val sb = StringBuffer()
+            val bindings = SimpleBindings()
+            bindings["java"] = this
+            bindings["cookie"] = CookieStore
+            bindings["cache"] = CacheManager
+            bindings["baseUrl"] = baseUrl
+            bindings["page"] = page
+            bindings["key"] = key
+            bindings["speakText"] = speakText
+            bindings["speakSpeed"] = speakSpeed
+            bindings["book"] = book
             val expMatcher = EXP_PATTERN.matcher(ruleUrl)
             while (expMatcher.find()) {
-                jsEval = SCRIPT_ENGINE.eval(expMatcher.group(1), simpleBindings)
+                jsEval = expMatcher.group(1)?.let {
+                    SCRIPT_ENGINE.eval(it, bindings)
+                } ?: ""
                 if (jsEval is String) {
                     expMatcher.appendReplacement(sb, jsEval)
                 } else if (jsEval is Double && jsEval % 1.0 == 0.0) {
@@ -151,37 +171,45 @@ class AnalyzeUrl(
      * 处理URL
      */
     private fun initUrl() {
-        var urlArray = ruleUrl.split(",[^\\{]*".toRegex(), 2)
+        var urlArray = ruleUrl.split(splitUrlRegex, 2)
         url = urlArray[0]
+        urlHasQuery = urlArray[0]
         NetworkUtils.getBaseUrl(url)?.let {
             baseUrl = it
         }
         if (urlArray.size > 1) {
             val option = GSON.fromJsonObject<UrlOption>(urlArray[1])
             option?.let { _ ->
-                option.method?.let { if (it.equals("POST", true)) method = RequestMethod.POST }
+                option.method?.let {
+                    if (it.equals("POST", true)) method = RequestMethod.POST
+                }
+                option.type?.let { type = it }
                 option.headers?.let { headers ->
                     if (headers is Map<*, *>) {
-                        @Suppress("unchecked_cast")
-                        headerMap.putAll(headers as Map<out String, String>)
-                    }
-                    if (headers is String) {
+                        headers.forEach { entry ->
+                            headerMap[entry.key.toString()] = entry.value.toString()
+                        }
+                    } else if (headers is String) {
                         GSON.fromJsonObject<Map<String, String>>(headers)
                             ?.let { headerMap.putAll(it) }
                     }
                 }
-                charset = option.charset
-                body = if (option.body is String) {
-                    option.body
-                } else {
-                    GSON.toJson(option.body)
+                option.charset?.let { charset = it }
+                option.body?.let {
+                    body = if (it is String) it else GSON.toJson(it)
                 }
                 option.webView?.let {
                     if (it.toString().isNotEmpty()) {
                         useWebView = true
                     }
                 }
+                option.js?.let {
+                    evalJS(it)
+                }
             }
+        }
+        headerMap[UA_NAME] ?: let {
+            headerMap[UA_NAME] = AppConfig.userAgent
         }
         when (method) {
             RequestMethod.GET -> {
@@ -210,7 +238,6 @@ class AnalyzeUrl(
     /**
      * 解析QueryMap
      */
-    @Throws(Exception::class)
     private fun analyzeFields(fieldsTxt: String) {
         queryStr = fieldsTxt
         val queryS = fieldsTxt.splitNotBlank("&")
@@ -234,57 +261,80 @@ class AnalyzeUrl(
     /**
      * 执行JS
      */
-    @Throws(Exception::class)
-    private fun evalJS(
-        jsStr: String,
-        result: Any?,
-        page: Int?,
-        key: String?,
-        book: BaseBook?
-    ): Any {
+    private fun evalJS(jsStr: String, result: Any? = null): Any? {
         val bindings = SimpleBindings()
         bindings["java"] = this
+        bindings["cookie"] = CookieStore
+        bindings["cache"] = CacheManager
         bindings["page"] = page
         bindings["key"] = key
+        bindings["speakText"] = speakText
+        bindings["speakSpeed"] = speakSpeed
         bindings["book"] = book
         bindings["result"] = result
         bindings["baseUrl"] = baseUrl
         return SCRIPT_ENGINE.eval(jsStr, bindings)
     }
 
-    @Throws(Exception::class)
+    fun put(key: String, value: String): String {
+        book?.putVariable(key, value)
+        return value
+    }
+
+    fun get(key: String): String {
+        return book?.variableMap?.get(key) ?: ""
+    }
+
     fun getResponse(tag: String): Call<String> {
         val cookie = CookieStore.getCookie(tag)
         if (cookie.isNotEmpty()) {
-            headerMap["Cookie"] = cookie
+            val cookieMap = CookieStore.cookieToMap(cookie)
+            val customCookieMap = CookieStore.cookieToMap(headerMap["Cookie"] ?: "")
+            cookieMap.putAll(customCookieMap)
+            val newCookie = CookieStore.mapToCookie(cookieMap)
+            newCookie?.let {
+                headerMap.put("Cookie", it)
+            }
         }
         return when {
             method == RequestMethod.POST -> {
                 if (fieldMap.isNotEmpty()) {
                     HttpHelper
-                        .getApiService<HttpPostApi>(baseUrl, charset)
+                        .getApiService<HttpPostApi>(baseUrl, charset, proxy)
                         .postMap(url, fieldMap, headerMap)
                 } else {
                     HttpHelper
-                        .getApiService<HttpPostApi>(baseUrl, charset)
+                        .getApiService<HttpPostApi>(baseUrl, charset, proxy)
                         .postBody(url, requestBody!!, headerMap)
                 }
             }
             fieldMap.isEmpty() -> HttpHelper
-                .getApiService<HttpGetApi>(baseUrl, charset)
+                .getApiService<HttpGetApi>(baseUrl, charset, proxy)
                 .get(url, headerMap)
             else -> HttpHelper
-                .getApiService<HttpGetApi>(baseUrl, charset)
+                .getApiService<HttpGetApi>(baseUrl, charset, proxy)
                 .getMap(url, fieldMap, headerMap)
         }
     }
 
-    @Throws(Exception::class)
-    suspend fun getResponseAwait(
+    suspend fun getRes(
         tag: String,
         jsStr: String? = null,
-        sourceRegex: String? = null
+        sourceRegex: String? = null,
     ): Res {
+        if (type != null) {
+            return Res(url, StringUtils.byteToHexString(getByteArray(tag)))
+        }
+        val cookie = CookieStore.getCookie(tag)
+        if (cookie.isNotEmpty()) {
+            val cookieMap = CookieStore.cookieToMap(cookie)
+            val customCookieMap = CookieStore.cookieToMap(headerMap["Cookie"] ?: "")
+            cookieMap.putAll(customCookieMap)
+            val newCookie = CookieStore.mapToCookie(cookieMap)
+            newCookie?.let {
+                headerMap.put("Cookie", it)
+            }
+        }
         if (useWebView) {
             val params = AjaxWebView.AjaxParams(url)
             params.headerMap = headerMap
@@ -295,30 +345,71 @@ class AnalyzeUrl(
             params.tag = tag
             return HttpHelper.ajax(params)
         }
-        val cookie = CookieStore.getCookie(tag)
-        if (cookie.isNotEmpty()) {
-            headerMap["Cookie"] = cookie
-        }
         val res = when {
             method == RequestMethod.POST -> {
                 if (fieldMap.isNotEmpty()) {
                     HttpHelper
-                        .getApiService<HttpPostApi>(baseUrl, charset)
+                        .getApiService<HttpPostApi>(baseUrl, charset, proxy)
                         .postMapAsync(url, fieldMap, headerMap)
                 } else {
                     HttpHelper
-                        .getApiService<HttpPostApi>(baseUrl, charset)
+                        .getApiService<HttpPostApi>(baseUrl, charset, proxy)
                         .postBodyAsync(url, requestBody!!, headerMap)
                 }
             }
-            fieldMap.isEmpty() -> HttpHelper
-                .getApiService<HttpGetApi>(baseUrl, charset)
-                .getAsync(url, headerMap)
-            else -> HttpHelper
-                .getApiService<HttpGetApi>(baseUrl, charset)
-                .getMapAsync(url, fieldMap, headerMap)
+            fieldMap.isEmpty() -> {
+                HttpHelper
+                    .getApiService<HttpGetApi>(baseUrl, charset, proxy)
+                    .getAsync(url, headerMap)
+            }
+            else -> {
+                HttpHelper
+                    .getApiService<HttpGetApi>(baseUrl, charset, proxy)
+                    .getMapAsync(url, fieldMap, headerMap)
+            }
         }
         return Res(NetworkUtils.getUrl(res), res.body())
+    }
+
+    suspend fun getByteArray(tag: String? = null): ByteArray {
+        if (tag != null) {
+            val cookie = CookieStore.getCookie(tag)
+            if (cookie.isNotEmpty()) {
+                val cookieMap = CookieStore.cookieToMap(cookie)
+                val customCookieMap = CookieStore.cookieToMap(headerMap["Cookie"] ?: "")
+                cookieMap.putAll(customCookieMap)
+                val newCookie = CookieStore.mapToCookie(cookieMap)
+                newCookie?.let {
+                    headerMap.put("Cookie", it)
+                }
+            }
+        }
+        return when (method) {
+            RequestMethod.POST -> {
+                if (fieldMap.isNotEmpty()) {
+                    RxHttp.postForm(url)
+                        .addAll(fieldMap)
+                        .addAllHeader(headerMap)
+                        .toByteArray().await()
+                } else {
+                    RxHttp.postJson(url)
+                        .addAll(body)
+                        .addAllHeader(headerMap)
+                        .toByteArray().await()
+                }
+            }
+            else -> RxHttp.get(url)
+                .addAll(fieldMap)
+                .toByteArray().await()
+        }
+    }
+
+    fun getGlideUrl(): GlideUrl {
+        val headers = LazyHeaders.Builder()
+        headerMap.forEach { (key, value) ->
+            headers.addHeader(key, value)
+        }
+        return GlideUrl(urlHasQuery, headers.build())
     }
 
     data class UrlOption(
@@ -326,7 +417,9 @@ class AnalyzeUrl(
         val charset: String?,
         val webView: Any?,
         val headers: Any?,
-        val body: Any?
+        val body: Any?,
+        val type: String?,
+        val js: String?
     )
 
 }

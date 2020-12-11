@@ -3,39 +3,39 @@ package io.legado.app.base.adapter
 import android.content.Context
 import android.util.SparseArray
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewbinding.ViewBinding
 import java.util.*
-
 
 /**
  * Created by Invincible on 2017/11/24.
  *
  * 通用的adapter 可添加header，footer，以及不同类型item
  */
-abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
+@Suppress("unused", "MemberVisibilityCanBePrivate")
+abstract class CommonRecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Context) :
     RecyclerView.Adapter<ItemViewHolder>() {
 
-    constructor(context: Context, vararg delegates: ItemViewDelegate<ITEM>) : this(context) {
+    constructor(context: Context, vararg delegates: ItemViewDelegate<ITEM, VB>) : this(context) {
         addItemViewDelegates(*delegates)
     }
 
     constructor(
         context: Context,
-        vararg delegates: Pair<Int, ItemViewDelegate<ITEM>>
+        vararg delegates: Pair<Int, ItemViewDelegate<ITEM, VB>>
     ) : this(context) {
         addItemViewDelegates(*delegates)
     }
 
-    private val inflater: LayoutInflater = LayoutInflater.from(context)
+    val inflater: LayoutInflater = LayoutInflater.from(context)
 
-    private var headerItems: SparseArray<View>? = null
-    private var footerItems: SparseArray<View>? = null
+    private val headerItems: SparseArray<(parent: ViewGroup) -> ViewBinding> by lazy { SparseArray() }
+    private val footerItems: SparseArray<(parent: ViewGroup) -> ViewBinding> by lazy { SparseArray() }
 
-    private val itemDelegates: HashMap<Int, ItemViewDelegate<ITEM>> = hashMapOf()
+    private val itemDelegates: HashMap<Int, ItemViewDelegate<ITEM, VB>> = hashMapOf()
     private val items: MutableList<ITEM> = mutableListOf()
 
     private val lock = Object()
@@ -43,7 +43,7 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
     private var itemClickListener: ((holder: ItemViewHolder, item: ITEM) -> Unit)? = null
     private var itemLongClickListener: ((holder: ItemViewHolder, item: ITEM) -> Boolean)? = null
 
-    private var itemAnimation: ItemAnimation? = null
+    var itemAnimation: ItemAnimation? = null
 
     fun setOnItemClickListener(listener: (holder: ItemViewHolder, item: ITEM) -> Unit) {
         itemClickListener = listener
@@ -57,75 +57,61 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
         recyclerView.adapter = this
     }
 
-    fun <DELEGATE : ItemViewDelegate<ITEM>> addItemViewDelegate(viewType: Int, delegate: DELEGATE) {
+    fun <DELEGATE : ItemViewDelegate<ITEM, VB>> addItemViewDelegate(
+        viewType: Int,
+        delegate: DELEGATE
+    ) {
         itemDelegates[viewType] = delegate
     }
 
-    fun <DELEGATE : ItemViewDelegate<ITEM>> addItemViewDelegate(delegate: DELEGATE) {
+    fun addItemViewDelegate(delegate: ItemViewDelegate<ITEM, VB>) {
         itemDelegates[itemDelegates.size] = delegate
     }
 
-    fun <DELEGATE : ItemViewDelegate<ITEM>> addItemViewDelegates(vararg delegates: DELEGATE) {
+    fun addItemViewDelegates(vararg delegates: ItemViewDelegate<ITEM, VB>) {
         delegates.forEach {
             addItemViewDelegate(it)
         }
     }
 
-    fun addItemViewDelegates(vararg delegates: Pair<Int, ItemViewDelegate<ITEM>>) {
+    fun addItemViewDelegates(vararg delegates: Pair<Int, ItemViewDelegate<ITEM, VB>>) =
         delegates.forEach {
             addItemViewDelegate(it.first, it.second)
         }
-    }
 
-    fun addHeaderView(header: View) {
+    fun addHeaderView(header: ((parent: ViewGroup) -> ViewBinding)) {
         synchronized(lock) {
-            if (headerItems == null) {
-                headerItems = SparseArray()
-            }
-            headerItems?.let {
-                val index = it.size()
-                it.put(TYPE_HEADER_VIEW + it.size(), header)
-                notifyItemInserted(index)
-            }
+            val index = headerItems.size()
+            headerItems.put(TYPE_HEADER_VIEW + headerItems.size(), header)
+            notifyItemInserted(index)
         }
     }
 
-    fun addFooterView(footer: View) {
+    fun addFooterView(footer: ((parent: ViewGroup) -> ViewBinding)) =
         synchronized(lock) {
-            if (footerItems == null) {
-                footerItems = SparseArray()
-            }
-            footerItems?.let {
-                val index = getActualItemCount() + it.size()
-                it.put(TYPE_FOOTER_VIEW + it.size(), footer)
-                notifyItemInserted(index)
-            }
+            val index = getActualItemCount() + footerItems.size()
+            footerItems.put(TYPE_FOOTER_VIEW + footerItems.size(), footer)
+            notifyItemInserted(index)
         }
-    }
 
-    fun removeHeaderView(header: View) {
-        synchronized(lock) {
-            headerItems?.let {
-                val index = it.indexOfValue(header)
-                if (index >= 0) {
-                    it.remove(index)
-                    notifyItemRemoved(index)
-                }
-            }
-        }
-    }
 
-    fun removeFooterView(footer: View) {
+    fun removeHeaderView(header: ((parent: ViewGroup) -> ViewBinding)) =
         synchronized(lock) {
-            footerItems?.let {
-                val index = it.indexOfValue(footer)
-                if (index >= 0) {
-                    it.remove(index)
-                    notifyItemRemoved(getActualItemCount() + index - 2)
-                }
+            val index = headerItems.indexOfValue(header)
+            if (index >= 0) {
+                headerItems.remove(index)
+                notifyItemRemoved(index)
             }
         }
-    }
+
+    fun removeFooterView(footer: ((parent: ViewGroup) -> ViewBinding)) =
+        synchronized(lock) {
+            val index = footerItems.indexOfValue(footer)
+            if (index >= 0) {
+                footerItems.remove(index)
+                notifyItemRemoved(getActualItemCount() + index - 2)
+            }
+        }
 
     fun setItems(items: List<ITEM>?) {
         synchronized(lock) {
@@ -228,7 +214,7 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
         }
     }
 
-    fun updateItem(item: ITEM) {
+    fun updateItem(item: ITEM) =
         synchronized(lock) {
             val index = this.items.indexOf(item)
             if (index >= 0) {
@@ -236,18 +222,16 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
                 notifyItemChanged(index)
             }
         }
-    }
 
-    fun updateItem(position: Int, payload: Any) {
+    fun updateItem(position: Int, payload: Any) =
         synchronized(lock) {
             val size = getActualItemCount()
             if (position in 0 until size) {
                 notifyItemChanged(position + getHeaderCount(), payload)
             }
         }
-    }
 
-    fun updateItems(fromPosition: Int, toPosition: Int, payloads: Any) {
+    fun updateItems(fromPosition: Int, toPosition: Int, payloads: Any) =
         synchronized(lock) {
             val size = getActualItemCount()
             if (fromPosition in 0 until size && toPosition in 0 until size) {
@@ -258,119 +242,92 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
                 )
             }
         }
-    }
 
-    fun clearItems() {
+    fun clearItems() =
         synchronized(lock) {
             this.items.clear()
             notifyDataSetChanged()
         }
-    }
 
-    fun isEmpty(): Boolean {
-        return items.isEmpty()
-    }
+    fun isEmpty() = items.isEmpty()
 
-    fun isNotEmpty(): Boolean {
-        return items.isNotEmpty()
-    }
+    fun isNotEmpty() = items.isNotEmpty()
 
     /**
      * 除去header和footer
      */
-    fun getActualItemCount(): Int {
-        return items.size
-    }
+    fun getActualItemCount() = items.size
 
-    fun getHeaderCount(): Int {
-        return headerItems?.size() ?: 0
-    }
 
-    fun getFooterCount(): Int {
-        return footerItems?.size() ?: 0
-    }
+    fun getHeaderCount() = headerItems.size()
+
+
+    fun getFooterCount() = footerItems.size()
 
     fun getItem(position: Int): ITEM? = items.getOrNull(position)
 
-    fun getItemByLayoutPosition(position: Int): ITEM? {
-        val pos = position - getHeaderCount()
-        return items.getOrNull(pos)
-    }
+    fun getItemByLayoutPosition(position: Int) = items.getOrNull(position - getHeaderCount())
 
     fun getItems(): List<ITEM> = items
 
-    protected open fun getItemViewType(item: ITEM, position: Int): Int {
-        return 0
-    }
+    protected open fun getItemViewType(item: ITEM, position: Int) = 0
 
     /**
      * grid 模式下使用
      */
-    protected open fun getSpanSize(item: ITEM, viewType: Int, position: Int): Int {
-        return 1
+    protected open fun getSpanSize(viewType: Int, position: Int) = 1
+
+    final override fun getItemCount() = getActualItemCount() + getHeaderCount() + getFooterCount()
+
+    final override fun getItemViewType(position: Int) = when {
+        isHeader(position) -> TYPE_HEADER_VIEW + position
+        isFooter(position) -> TYPE_FOOTER_VIEW + position - getActualItemCount() - getHeaderCount()
+        else -> getItem(getActualPosition(position))?.let {
+            getItemViewType(it, getActualPosition(position))
+        } ?: 0
     }
 
-    final override fun getItemCount(): Int {
-        return getActualItemCount() + getHeaderCount() + getFooterCount()
-    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = when {
+        viewType < TYPE_HEADER_VIEW + getHeaderCount() -> {
+            ItemViewHolder(headerItems.get(viewType).invoke(parent))
+        }
 
-    final override fun getItemViewType(position: Int): Int {
-        return when {
-            isHeader(position) -> TYPE_HEADER_VIEW + position
-            isFooter(position) -> TYPE_FOOTER_VIEW + position - getActualItemCount() - getHeaderCount()
-            else -> getItem(getActualPosition(position))?.let {
-                getItemViewType(it, getActualPosition(position))
-            } ?: 0
+        viewType >= TYPE_FOOTER_VIEW -> {
+            ItemViewHolder(footerItems.get(viewType).invoke(parent))
+        }
+
+        else -> {
+            val holder = ItemViewHolder(getViewBinding(parent))
+
+            @Suppress("UNCHECKED_CAST")
+            itemDelegates.getValue(viewType)
+                .registerListener(holder, (holder.binding as VB))
+
+            if (itemClickListener != null) {
+                holder.itemView.setOnClickListener {
+                    getItem(holder.layoutPosition)?.let {
+                        itemClickListener?.invoke(holder, it)
+                    }
+                }
+            }
+
+            if (itemLongClickListener != null) {
+                holder.itemView.setOnLongClickListener {
+                    getItem(holder.layoutPosition)?.let {
+                        itemLongClickListener?.invoke(holder, it) ?: true
+                    } ?: true
+                }
+            }
+
+            holder
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ItemViewHolder {
-        return when {
-            viewType < TYPE_HEADER_VIEW + getHeaderCount() -> {
-                ItemViewHolder(headerItems!!.get(viewType))
-            }
+    protected abstract fun getViewBinding(parent: ViewGroup): VB
 
-            viewType >= TYPE_FOOTER_VIEW -> {
-                ItemViewHolder(footerItems!!.get(viewType))
-            }
+    final override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {}
 
-            else -> {
-                val holder = ItemViewHolder(
-                    inflater.inflate(
-                        itemDelegates.getValue(viewType).layoutId,
-                        parent,
-                        false
-                    )
-                )
-
-                itemDelegates.getValue(viewType)
-                    .registerListener(holder)
-
-                if (itemClickListener != null) {
-                    holder.itemView.setOnClickListener {
-                        getItem(holder.layoutPosition)?.let {
-                            itemClickListener?.invoke(holder, it)
-                        }
-                    }
-                }
-
-                if (itemLongClickListener != null) {
-                    holder.itemView.setOnLongClickListener {
-                        getItem(holder.layoutPosition)?.let {
-                            itemLongClickListener?.invoke(holder, it) ?: true
-                        } ?: true
-                    }
-                }
-
-                holder
-            }
-        }
-    }
-
-
-    final override fun onBindViewHolder(holder: ItemViewHolder, position: Int) {
-    }
-
+    @Suppress("UNCHECKED_CAST")
     final override fun onBindViewHolder(
         holder: ItemViewHolder,
         position: Int,
@@ -379,7 +336,7 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
         if (!isHeader(holder.layoutPosition) && !isFooter(holder.layoutPosition)) {
             getItem(holder.layoutPosition - getHeaderCount())?.let {
                 itemDelegates.getValue(getItemViewType(holder.layoutPosition))
-                    .convert(holder, it, payloads)
+                    .convert(holder, (holder.binding as VB), it, payloads)
             }
         }
     }
@@ -397,31 +354,17 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
         if (manager is GridLayoutManager) {
             manager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
                 override fun getSpanSize(position: Int): Int {
-                    return getItem(position)?.let {
-                        if (isHeader(position) || isFooter(position)) manager.spanCount else getSpanSize(
-                            it, getItemViewType(position), position
-                        )
-                    } ?: manager.spanCount
+                    return getSpanSize(getItemViewType(position), position)
                 }
             }
         }
     }
 
-    fun setItemAnimation(item: ItemAnimation) {
-        itemAnimation = item
-    }
+    private fun isHeader(position: Int) = position < getHeaderCount()
 
-    private fun isHeader(position: Int): Boolean {
-        return position < getHeaderCount()
-    }
+    private fun isFooter(position: Int) = position >= getActualItemCount() + getHeaderCount()
 
-    private fun isFooter(position: Int): Boolean {
-        return position >= getActualItemCount() + getHeaderCount()
-    }
-
-    private fun getActualPosition(position: Int): Int {
-        return position - getHeaderCount()
-    }
+    private fun getActualPosition(position: Int) = position - getHeaderCount()
 
     private fun addAnimation(holder: ItemViewHolder) {
         itemAnimation?.let {
@@ -433,7 +376,6 @@ abstract class CommonRecyclerAdapter<ITEM>(protected val context: Context) :
             }
         }
     }
-
 
     protected open fun startAnimation(holder: ItemViewHolder, item: ItemAnimation) {
         item.itemAnimation?.let {

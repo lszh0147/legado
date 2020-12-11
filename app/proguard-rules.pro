@@ -54,6 +54,8 @@
 # Android开发中一些需要保留的公共部分
 #
 #############################################
+# 屏蔽错误Unresolved class name
+#noinspection ShrinkerUnresolvedReference
 
 # 保留我们使用的四大组件，自定义的Application等等这些类不被混淆
 # 因为这些子类都有可能被外部调用
@@ -65,7 +67,6 @@
 -keep public class * extends android.app.backup.BackupAgentHelper
 -keep public class * extends android.preference.Preference
 -keep public class * extends android.view.View
-
 
 # 保留androidx下的所有类及其内部类
 -keep class androidx.** {*;}
@@ -152,7 +153,6 @@
 -keep class **.data.**{*;}
 
 -dontwarn rx.**
-
 -dontwarn okio.**
 -dontwarn javax.annotation.**
 -dontwarn org.apache.log4j.lf5.viewer.**
@@ -209,10 +209,10 @@
 -dontwarn nl.siegmann.epublib.**
 -dontwarn org.xmlpull.**
 -keep class nl.siegmann.epublib.**{*;}
--keep class javax.xml**{*;}
--keep class org.xmlpull**{*;}
+-keep class javax.xml.**{*;}
+-keep class org.xmlpull.**{*;}
 
--keep class org.simpleframework.xml**{*;}
+-keep class org.simpleframework.**{*;}
 -dontwarn org.simpleframework.xml.**
 
 -keepclassmembers class * {

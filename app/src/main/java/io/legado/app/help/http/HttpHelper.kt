@@ -1,14 +1,10 @@
 package io.legado.app.help.http
 
-import io.legado.app.constant.AppConst
-import io.legado.app.help.http.api.HttpGetApi
-import io.legado.app.utils.NetworkUtils
 import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.ConnectionSpec
-import okhttp3.Interceptor
-import okhttp3.OkHttpClient
-import okhttp3.Protocol
+import okhttp3.*
 import retrofit2.Retrofit
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 
@@ -39,52 +35,67 @@ object HttpHelper {
         builder.build()
     }
 
-    fun simpleGet(url: String, encode: String? = null): String? {
-        NetworkUtils.getBaseUrl(url)?.let { baseUrl ->
-            val response = getApiService<HttpGetApi>(baseUrl, encode)
-                .get(url, mapOf(Pair(AppConst.UA_NAME, AppConst.userAgent)))
-                .execute()
-            return response.body()
-        }
-        return null
+    inline fun <reified T> getApiService(
+        baseUrl: String,
+        encode: String? = null,
+        proxy: String? = null
+    ): T {
+        return getRetrofit(baseUrl, encode, proxy).create(T::class.java)
     }
 
-    suspend fun simpleGetAsync(url: String, encode: String? = null): String? {
-        NetworkUtils.getBaseUrl(url)?.let { baseUrl ->
-            val response = getApiService<HttpGetApi>(baseUrl, encode)
-                .getAsync(url, mapOf(Pair(AppConst.UA_NAME, AppConst.userAgent)))
-            return response.body()
-        }
-        return null
-    }
-
-    suspend fun simpleGetByteAsync(url: String): ByteArray? {
-        NetworkUtils.getBaseUrl(url)?.let { baseUrl ->
-            return getByteRetrofit(baseUrl)
-                .create(HttpGetApi::class.java)
-                .getMapByteAsync(url, mapOf(), mapOf(Pair(AppConst.UA_NAME, AppConst.userAgent)))
-                .body()
-        }
-        return null
-    }
-
-    inline fun <reified T> getApiService(baseUrl: String, encode: String? = null): T {
-        return getRetrofit(baseUrl, encode).create(T::class.java)
-    }
-
-    fun getRetrofit(baseUrl: String, encode: String? = null): Retrofit {
+    fun getRetrofit(
+        baseUrl: String,
+        encode: String? = null,
+        proxy: String? = null
+    ): Retrofit {
         return Retrofit.Builder().baseUrl(baseUrl)
             //增加返回值为字符串的支持(以实体类返回)
             .addConverterFactory(EncodeConverter(encode))
-            .client(client)
+            .client(getProxyClient(proxy))
             .build()
     }
 
-    fun getByteRetrofit(baseUrl: String): Retrofit {
-        return Retrofit.Builder().baseUrl(baseUrl)
-            .addConverterFactory(ByteConverter())
-            .client(client)
-            .build()
+    fun getProxyClient(proxy: String? = null): OkHttpClient {
+        if (proxy.isNullOrBlank()) {
+            return client
+        }
+        val r = Regex("(http|socks4|socks5)://(.*):(\\d{2,5})(@.*@.*)?")
+        val ms = r.findAll(proxy)
+        val group = ms.first()
+        val type: String     //直接连接
+        val host: String  //代理服务器hostname
+        val port: Int            //代理服务器port
+        var username = ""       //代理服务器验证用户名
+        var password = ""       //代理服务器验证密码
+        type = if (group.groupValues[1] == "http") {
+            "http"
+        } else {
+            "socks"
+        }
+        host = group.groupValues[2]
+        port = group.groupValues[3].toInt()
+        if (group.groupValues[4] != "") {
+            username = group.groupValues[4].split("@")[1]
+            password = group.groupValues[4].split("@")[2]
+        }
+        val builder = client.newBuilder()
+        if (type != "direct" && host != "") {
+            if (type == "http") {
+                builder.proxy(Proxy(Proxy.Type.HTTP, InetSocketAddress(host, port)))
+            } else {
+                builder.proxy(Proxy(Proxy.Type.SOCKS, InetSocketAddress(host, port)))
+            }
+            if (username != "" && password != "") {
+                builder.proxyAuthenticator { _, response -> //设置代理服务器账号密码
+                    val credential: String = Credentials.basic(username, password)
+                    response.request().newBuilder()
+                        .header("Proxy-Authorization", credential)
+                        .build()
+                }
+            }
+
+        }
+        return builder.build()
     }
 
     private fun getHeaderInterceptor(): Interceptor {

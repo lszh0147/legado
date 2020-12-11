@@ -1,23 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="book_type">
-        <item>@string/book_type_text</item>
-        <item>@string/book_type_audio</item>
-    </string-array>
-
-    <string-array name="tts_speech_per">
-        <item>度小美</item>
-        <item>度小宇</item>
-        <item>度逍遙</item>
-        <item>度丫丫</item>
-        <item>度小嬌</item>
-        <item>度米朵</item>
-        <item>度博文</item>
-        <item>度小童</item>
-        <item>度小萌</item>
-        <item>百度騷男</item>
-        <item>百度評書</item>
-        <item>百度主持</item>
+        <item>文字</item>
+        <item>音訊</item>
     </string-array>
 
     <string-array name="indent">
@@ -62,12 +47,6 @@
         <item>常亮</item>
     </string-array>
 
-    <string-array name="select_folder">
-        <item>@string/default_path</item>
-        <item>@string/sys_folder_picker</item>
-        <item>@string/app_folder_picker</item>
-    </string-array>
-
     <string-array name="screen_direction_title">
         <item>@string/screen_unspecified</item>
         <item>@string/screen_portrait</item>
@@ -105,6 +84,8 @@
         <item>頁數</item>
         <item>進度</item>
         <item>頁數及進度</item>
+        <item>書名</item>
+        <item>時間及電量</item>
     </string-array>
 
     <string-array name="text_font_weight">
@@ -112,4 +93,18 @@
         <item>粗體</item>
         <item>細體</item>
     </string-array>
+
+    <string-array name="language">
+        <item>跟隨系統</item>
+        <item>簡體中文</item>
+        <item>繁體中文</item>
+        <item>英文</item>
+    </string-array>
+
+    <string-array name="rule_type">
+        <item>書源</item>
+        <item>訂閲源</item>
+        <item>替換規則</item>
+    </string-array>
+
 </resources>

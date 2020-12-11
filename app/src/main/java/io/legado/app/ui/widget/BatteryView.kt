@@ -5,12 +5,17 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Typeface
 import android.util.AttributeSet
 import androidx.annotation.ColorInt
 import androidx.appcompat.widget.AppCompatTextView
 import io.legado.app.utils.dp
+import java.io.File
 
-class BatteryView(context: Context, attrs: AttributeSet?) : AppCompatTextView(context, attrs) {
+class BatteryView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null
+) : AppCompatTextView(context, attrs) {
     private val batteryPaint = Paint()
     private val outFrame = Rect()
     private val polar = Rect()
@@ -21,6 +26,9 @@ class BatteryView(context: Context, attrs: AttributeSet?) : AppCompatTextView(co
         batteryPaint.strokeWidth = 1.dp.toFloat()
         batteryPaint.isAntiAlias = true
         batteryPaint.color = paint.color
+        if (!isInEditMode) {
+            typeface = Typeface.createFromAsset(context.assets, "font${File.separator}number.ttf")
+        }
     }
 
     fun setColor(@ColorInt color: Int) {

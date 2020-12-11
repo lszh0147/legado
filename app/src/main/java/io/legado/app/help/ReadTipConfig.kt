@@ -2,13 +2,17 @@ package io.legado.app.help
 
 import io.legado.app.App
 import io.legado.app.R
-import io.legado.app.utils.getPrefBoolean
-import io.legado.app.utils.getPrefInt
-import io.legado.app.utils.putPrefBoolean
-import io.legado.app.utils.putPrefInt
 
 object ReadTipConfig {
-    val tipArray: Array<String> = App.INSTANCE.resources.getStringArray(R.array.read_tip)
+    val tips by lazy {
+        App.INSTANCE.resources.getStringArray(R.array.read_tip).toList()
+    }
+    val headerModes by lazy {
+        linkedMapOf(0 to "状态栏显示时隐藏", 1 to "显示", 2 to "隐藏")
+    }
+    val footerModes by lazy {
+        linkedMapOf(0 to "显示", 1 to "隐藏")
+    }
     const val none = 0
     const val chapterTitle = 1
     const val time = 2
@@ -16,59 +20,67 @@ object ReadTipConfig {
     const val page = 4
     const val totalProgress = 5
     const val pageAndTotal = 6
+    const val bookName = 7
+    const val timeBattery = 8
 
-    val tipHeaderLeftStr: String get() = tipArray.getOrElse(tipHeaderLeft) { tipArray[none] }
-    val tipHeaderMiddleStr: String get() = tipArray.getOrElse(tipHeaderMiddle) { tipArray[none] }
-    val tipHeaderRightStr: String get() = tipArray.getOrElse(tipHeaderRight) { tipArray[none] }
-    val tipFooterLeftStr: String get() = tipArray.getOrElse(tipFooterLeft) { tipArray[none] }
-    val tipFooterMiddleStr: String get() = tipArray.getOrElse(tipFooterMiddle) { tipArray[none] }
-    val tipFooterRightStr: String get() = tipArray.getOrElse(tipFooterRight) { tipArray[none] }
+    val tipHeaderLeftStr: String get() = tips.getOrElse(tipHeaderLeft) { tips[none] }
+    val tipHeaderMiddleStr: String get() = tips.getOrElse(tipHeaderMiddle) { tips[none] }
+    val tipHeaderRightStr: String get() = tips.getOrElse(tipHeaderRight) { tips[none] }
+    val tipFooterLeftStr: String get() = tips.getOrElse(tipFooterLeft) { tips[none] }
+    val tipFooterMiddleStr: String get() = tips.getOrElse(tipFooterMiddle) { tips[none] }
+    val tipFooterRightStr: String get() = tips.getOrElse(tipFooterRight) { tips[none] }
 
     var tipHeaderLeft: Int
-        get() = App.INSTANCE.getPrefInt("tipHeaderLeft", time)
+        get() = ReadBookConfig.config.tipHeaderLeft
         set(value) {
-            App.INSTANCE.putPrefInt("tipHeaderLeft", value)
+            ReadBookConfig.config.tipHeaderLeft = value
         }
 
     var tipHeaderMiddle: Int
-        get() = App.INSTANCE.getPrefInt("tipHeaderMiddle", none)
+        get() = ReadBookConfig.config.tipHeaderMiddle
         set(value) {
-            App.INSTANCE.putPrefInt("tipHeaderMiddle", value)
+            ReadBookConfig.config.tipHeaderMiddle = value
         }
 
     var tipHeaderRight: Int
-        get() = App.INSTANCE.getPrefInt("tipHeaderRight", battery)
+        get() = ReadBookConfig.config.tipHeaderRight
         set(value) {
-            App.INSTANCE.putPrefInt("tipHeaderRight", value)
+            ReadBookConfig.config.tipHeaderRight = value
         }
 
     var tipFooterLeft: Int
-        get() = App.INSTANCE.getPrefInt("tipFooterLeft", chapterTitle)
+        get() = ReadBookConfig.config.tipFooterLeft
         set(value) {
-            App.INSTANCE.putPrefInt("tipFooterLeft", value)
+            ReadBookConfig.config.tipFooterLeft = value
         }
 
     var tipFooterMiddle: Int
-        get() = App.INSTANCE.getPrefInt("tipFooterMiddle", none)
+        get() = ReadBookConfig.config.tipFooterMiddle
         set(value) {
-            App.INSTANCE.putPrefInt("tipFooterMiddle", value)
+            ReadBookConfig.config.tipFooterMiddle = value
         }
 
     var tipFooterRight: Int
-        get() = App.INSTANCE.getPrefInt("tipFooterRight", pageAndTotal)
+        get() = ReadBookConfig.config.tipFooterRight
         set(value) {
-            App.INSTANCE.putPrefInt("tipFooterRight", value)
+            ReadBookConfig.config.tipFooterRight = value
         }
 
-    var hideHeader: Boolean
-        get() = App.INSTANCE.getPrefBoolean("hideHeader", true)
+    var headerMode: Int
+        get() = ReadBookConfig.config.headerMode
         set(value) {
-            App.INSTANCE.putPrefBoolean("hideHeader", value)
+            ReadBookConfig.config.headerMode = value
         }
 
-    var hideFooter: Boolean
-        get() = App.INSTANCE.getPrefBoolean("hideFooter", false)
+    var footerMode: Int
+        get() = ReadBookConfig.config.footerMode
         set(value) {
-            App.INSTANCE.putPrefBoolean("hideFooter", value)
+            ReadBookConfig.config.footerMode = value
+        }
+
+    var tipColor: Int
+        get() = ReadBookConfig.config.tipColor
+        set(value) {
+            ReadBookConfig.config.tipColor = value
         }
 }

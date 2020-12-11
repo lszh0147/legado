@@ -1,7 +1,6 @@
 package io.legado.app.ui.book.changesource
 
 import android.os.Bundle
-import android.util.DisplayMetrics
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
@@ -9,22 +8,23 @@ import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
 import androidx.appcompat.widget.Toolbar
 import androidx.fragment.app.FragmentManager
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.R
 import io.legado.app.base.BaseDialogFragment
 import io.legado.app.constant.PreferKey
-import io.legado.app.constant.Theme
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.SearchBook
+import io.legado.app.databinding.DialogChangeSourceBinding
+import io.legado.app.help.AppConfig
+import io.legado.app.lib.theme.primaryColor
 import io.legado.app.ui.widget.recycler.VerticalDivider
 import io.legado.app.utils.applyTint
-import io.legado.app.utils.getPrefBoolean
+import io.legado.app.utils.getSize
 import io.legado.app.utils.getViewModel
 import io.legado.app.utils.putPrefBoolean
-import kotlinx.android.synthetic.main.dialog_change_source.*
+import io.legado.app.utils.viewbindingdelegate.viewBinding
 
 
 class ChangeSourceDialog : BaseDialogFragment(),
@@ -46,14 +46,14 @@ class ChangeSourceDialog : BaseDialogFragment(),
         }
     }
 
+    private val binding by viewBinding(DialogChangeSourceBinding::bind)
     private var callBack: CallBack? = null
     private lateinit var viewModel: ChangeSourceViewModel
     lateinit var adapter: ChangeSourceAdapter
 
     override fun onStart() {
         super.onStart()
-        val dm = DisplayMetrics()
-        activity?.windowManager?.defaultDisplay?.getMetrics(dm)
+        val dm = requireActivity().getSize()
         dialog?.window?.setLayout((dm.widthPixels * 0.9).toInt(), (dm.heightPixels * 0.9).toInt())
     }
 
@@ -68,6 +68,7 @@ class ChangeSourceDialog : BaseDialogFragment(),
     }
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
+        binding.toolBar.setBackgroundColor(primaryColor)
         viewModel.initData(arguments)
         showTitle()
         initMenu()
@@ -78,47 +79,48 @@ class ChangeSourceDialog : BaseDialogFragment(),
     }
 
     private fun showTitle() {
-        tool_bar.title = viewModel.name
-        tool_bar.subtitle = getString(R.string.author_show, viewModel.author)
+        binding.toolBar.title = viewModel.name
+        binding.toolBar.subtitle = getString(R.string.author_show, viewModel.author)
     }
 
     private fun initMenu() {
-        tool_bar.inflateMenu(R.menu.change_source)
-        tool_bar.menu.applyTint(requireContext(), Theme.getTheme())
-        tool_bar.setOnMenuItemClickListener(this)
-        tool_bar.menu.findItem(R.id.menu_load_toc)?.isChecked =
-            getPrefBoolean(PreferKey.changeSourceLoadToc)
+        binding.toolBar.inflateMenu(R.menu.change_source)
+        binding.toolBar.menu.applyTint(requireContext())
+        binding.toolBar.setOnMenuItemClickListener(this)
+        binding.toolBar.menu.findItem(R.id.menu_load_info)?.isChecked =
+            AppConfig.changeSourceLoadInfo
+        binding.toolBar.menu.findItem(R.id.menu_load_toc)?.isChecked = AppConfig.changeSourceLoadToc
     }
 
     private fun initRecyclerView() {
         adapter = ChangeSourceAdapter(requireContext(), this)
-        recycler_view.layoutManager = LinearLayoutManager(context)
-        recycler_view.addItemDecoration(VerticalDivider(requireContext()))
-        recycler_view.adapter = adapter
+        binding.recyclerView.layoutManager = LinearLayoutManager(context)
+        binding.recyclerView.addItemDecoration(VerticalDivider(requireContext()))
+        binding.recyclerView.adapter = adapter
         adapter.registerAdapterDataObserver(object : RecyclerView.AdapterDataObserver() {
             override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
                 if (positionStart == 0) {
-                    recycler_view.scrollToPosition(0)
+                    binding.recyclerView.scrollToPosition(0)
                 }
             }
 
             override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
                 if (toPosition == 0) {
-                    recycler_view.scrollToPosition(0)
+                    binding.recyclerView.scrollToPosition(0)
                 }
             }
         })
     }
 
     private fun initSearchView() {
-        val searchView = tool_bar.menu.findItem(R.id.menu_screen).actionView as SearchView
+        val searchView = binding.toolBar.menu.findItem(R.id.menu_screen).actionView as SearchView
         searchView.setOnCloseListener {
             showTitle()
             false
         }
         searchView.setOnSearchClickListener {
-            tool_bar.title = ""
-            tool_bar.subtitle = ""
+            binding.toolBar.title = ""
+            binding.toolBar.subtitle = ""
         }
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String?): Boolean {
@@ -134,16 +136,16 @@ class ChangeSourceDialog : BaseDialogFragment(),
     }
 
     private fun initLiveData() {
-        viewModel.searchStateData.observe(viewLifecycleOwner, Observer {
-            refresh_progress_bar.isAutoLoading = it
+        viewModel.searchStateData.observe(viewLifecycleOwner, {
+            binding.refreshProgressBar.isAutoLoading = it
             if (it) {
                 stopMenuItem?.setIcon(R.drawable.ic_stop_black_24dp)
             } else {
                 stopMenuItem?.setIcon(R.drawable.ic_refresh_black_24dp)
             }
-            tool_bar.menu.applyTint(requireContext(), Theme.getTheme())
+            binding.toolBar.menu.applyTint(requireContext())
         })
-        viewModel.searchBooksLiveData.observe(viewLifecycleOwner, Observer {
+        viewModel.searchBooksLiveData.observe(viewLifecycleOwner, {
             val diffResult = DiffUtil.calculateDiff(DiffCallBack(adapter.getItems(), it))
             adapter.setItems(it)
             diffResult.dispatchUpdatesTo(adapter)
@@ -151,12 +153,16 @@ class ChangeSourceDialog : BaseDialogFragment(),
     }
 
     private val stopMenuItem: MenuItem?
-        get() = tool_bar.menu.findItem(R.id.menu_stop)
+        get() = binding.toolBar.menu.findItem(R.id.menu_stop)
 
     override fun onMenuItemClick(item: MenuItem?): Boolean {
         when (item?.itemId) {
             R.id.menu_load_toc -> {
                 putPrefBoolean(PreferKey.changeSourceLoadToc, !item.isChecked)
+                item.isChecked = !item.isChecked
+            }
+            R.id.menu_load_info -> {
+                putPrefBoolean(PreferKey.changeSourceLoadInfo, !item.isChecked)
                 item.isChecked = !item.isChecked
             }
             R.id.menu_stop -> viewModel.stopSearch()
@@ -166,19 +172,8 @@ class ChangeSourceDialog : BaseDialogFragment(),
 
     override fun changeTo(searchBook: SearchBook) {
         val book = searchBook.toBook()
-        callBack?.oldBook?.let { oldBook ->
-            book.group = oldBook.group
-            book.durChapterIndex = oldBook.durChapterIndex
-            book.durChapterPos = oldBook.durChapterPos
-            book.durChapterTitle = oldBook.durChapterTitle
-            book.customCoverUrl = oldBook.customCoverUrl
-            book.customIntro = oldBook.customIntro
-            book.order = oldBook.order
-            if (book.coverUrl.isNullOrEmpty()) {
-                book.coverUrl = oldBook.getDisplayCover()
-            }
-            callBack?.changeTo(book)
-        }
+        book.upInfoFromOld(callBack?.oldBook)
+        callBack?.changeTo(book)
         dismiss()
     }
 

@@ -4,9 +4,11 @@ import android.text.Layout
 import android.text.StaticLayout
 import io.legado.app.App
 import io.legado.app.R
-import io.legado.app.ui.book.read.page.ChapterProvider
+import io.legado.app.help.ReadBookConfig
+import io.legado.app.ui.book.read.page.provider.ChapterProvider
 import java.text.DecimalFormat
 
+@Suppress("unused")
 data class TextPage(
     var index: Int = 0,
     var text: String = App.INSTANCE.getString(R.string.data_loading),
@@ -15,11 +17,16 @@ data class TextPage(
     var pageSize: Int = 0,
     var chapterSize: Int = 0,
     var chapterIndex: Int = 0,
-    var height: Float = 0f
+    var height: Float = 0f,
 ) {
 
+    val lineSize get() = textLines.size
+    val charSize get() = text.length
+
     fun upLinesPosition() = ChapterProvider.apply {
+        if (!ReadBookConfig.textBottomJustify) return@apply
         if (textLines.size <= 1) return@apply
+        if (textLines.last().isImage) return@apply
         if (visibleHeight - height >= with(textLines.last()) { lineBottom - lineTop }) return@apply
         val surplus = (visibleBottom - textLines.last().lineBottom)
         if (surplus == 0f) return@apply

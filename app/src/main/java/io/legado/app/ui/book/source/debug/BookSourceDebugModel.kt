@@ -4,7 +4,7 @@ import android.app.Application
 import io.legado.app.App
 import io.legado.app.base.BaseViewModel
 import io.legado.app.model.Debug
-import io.legado.app.model.WebBook
+import io.legado.app.model.webBook.WebBook
 
 class BookSourceDebugModel(application: Application) : BaseViewModel(application),
     Debug.Callback {
@@ -17,7 +17,7 @@ class BookSourceDebugModel(application: Application) : BaseViewModel(application
         sourceUrl?.let {
             //优先使用这个，不会抛出异常
             execute {
-                val bookSource = App.db.bookSourceDao().getBookSource(sourceUrl)
+                val bookSource = App.db.bookSourceDao.getBookSource(sourceUrl)
                 bookSource?.let { webBook = WebBook(it) }
             }
         }

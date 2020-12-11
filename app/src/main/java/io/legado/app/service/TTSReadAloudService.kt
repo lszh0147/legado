@@ -1,6 +1,7 @@
 package io.legado.app.service
 
 import android.app.PendingIntent
+import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import io.legado.app.R
@@ -18,20 +19,8 @@ import java.util.*
 
 class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener {
 
-    companion object {
-        private var textToSpeech: TextToSpeech? = null
-        private var ttsInitFinish = false
-
-        fun clearTTS() {
-            textToSpeech?.let {
-                it.stop()
-                it.shutdown()
-            }
-            textToSpeech = null
-            ttsInitFinish = false
-        }
-    }
-
+    private var textToSpeech: TextToSpeech? = null
+    private var ttsInitFinish = false
     private val ttsUtteranceListener = TTSUtteranceListener()
 
     override fun onCreate() {
@@ -40,14 +29,29 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
         upSpeechRate()
     }
 
-    private fun initTts() {
-        ttsInitFinish = false
-        textToSpeech = TextToSpeech(this, this)
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        clearTTS()
+        stopSelf()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         clearTTS()
+    }
+
+    @Synchronized
+    private fun initTts() {
+        ttsInitFinish = false
+        textToSpeech = TextToSpeech(this, this)
+    }
+
+    @Synchronized
+    fun clearTTS() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
+        ttsInitFinish = false
     }
 
     override fun onInit(status: Int) {
@@ -71,15 +75,11 @@ class TTSReadAloudService : BaseReadAloudService(), TextToSpeech.OnInitListener 
             super.play()
             execute {
                 MediaHelp.playSilentSound(this@TTSReadAloudService)
+            }.onFinally {
                 textToSpeech?.let {
                     it.speak("", TextToSpeech.QUEUE_FLUSH, null, null)
                     for (i in nowSpeak until contentList.size) {
-                        it.speak(
-                            contentList[i],
-                            TextToSpeech.QUEUE_ADD,
-                            null,
-                            AppConst.APP_TAG + i
-                        )
+                        it.speak(contentList[i], TextToSpeech.QUEUE_ADD, null, AppConst.APP_TAG + i)
                     }
                 }
             }

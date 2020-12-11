@@ -8,12 +8,18 @@ import io.legado.app.data.entities.RssSource
 import io.legado.app.model.Debug
 import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.utils.NetworkUtils
+import java.util.*
 
 @Keep
 object RssParserByRule {
 
     @Throws(Exception::class)
-    fun parseXML(sortName: String, sortUrl: String, body: String?, rssSource: RssSource): Result {
+    fun parseXML(
+        sortName: String,
+        sortUrl: String,
+        body: String?,
+        rssSource: RssSource
+    ): RssResult {
         val sourceUrl = rssSource.sourceUrl
         var nextUrl: String? = null
         if (body.isNullOrBlank()) {
@@ -28,11 +34,11 @@ object RssParserByRule {
         var ruleArticles = rssSource.ruleArticles
         if (ruleArticles.isNullOrBlank()) {
             Debug.log(sourceUrl, "⇒列表规则为空, 使用默认规则解析")
-            return RssParser.parseXML(sortName, body, sourceUrl)
+            return RssParserDefault.parseXML(sortName, body, sourceUrl)
         } else {
             val articleList = mutableListOf<RssArticle>()
             val analyzeRule = AnalyzeRule()
-            analyzeRule.setContent(body, sortUrl)
+            analyzeRule.setContent(body).setBaseUrl(sortUrl)
             var reverse = false
             if (ruleArticles.startsWith("-")) {
                 reverse = true
@@ -43,9 +49,13 @@ object RssParserByRule {
             Debug.log(sourceUrl, "└列表大小:${collections.size}")
             if (!rssSource.ruleNextPage.isNullOrEmpty()) {
                 Debug.log(sourceUrl, "┌获取下一页链接")
-                nextUrl = analyzeRule.getString(rssSource.ruleNextPage)
-                if (nextUrl.isNotEmpty()) {
-                    nextUrl = NetworkUtils.getAbsoluteURL(sortUrl, nextUrl)
+                if (rssSource.ruleNextPage!!.toUpperCase(Locale.getDefault()) == "PAGE") {
+                    nextUrl = sortUrl
+                } else {
+                    nextUrl = analyzeRule.getString(rssSource.ruleNextPage)
+                    if (nextUrl.isNotEmpty()) {
+                        nextUrl = NetworkUtils.getAbsoluteURL(sortUrl, nextUrl)
+                    }
                 }
                 Debug.log(sourceUrl, "└$nextUrl")
             }
@@ -67,7 +77,7 @@ object RssParserByRule {
             if (reverse) {
                 articleList.reverse()
             }
-            return Result(articleList, nextUrl)
+            return RssResult(articleList, nextUrl)
         }
     }
 
@@ -102,7 +112,7 @@ object RssParserByRule {
         rssArticle.image = analyzeRule.getString(ruleImage, true)
         Debug.log(sourceUrl, "└${rssArticle.image}", log)
         Debug.log(sourceUrl, "┌获取文章链接", log)
-        rssArticle.link = analyzeRule.getString(ruleLink)
+        rssArticle.link = NetworkUtils.getAbsoluteURL(sourceUrl, analyzeRule.getString(ruleLink))!!
         Debug.log(sourceUrl, "└${rssArticle.link}", log)
         if (rssArticle.title.isBlank()) {
             return null

@@ -1,8 +1,6 @@
 package io.legado.app.lib.webdav
 
 import io.legado.app.help.http.HttpHelper
-import io.legado.app.lib.webdav.http.Handler
-import io.legado.app.lib.webdav.http.HttpAuth
 import okhttp3.*
 import org.jsoup.Jsoup
 import java.io.File
@@ -14,8 +12,8 @@ import java.net.URL
 import java.net.URLEncoder
 import java.util.*
 
-class WebDav @Throws(MalformedURLException::class)
-constructor(urlStr: String) {
+@Suppress("unused", "MemberVisibilityCanBePrivate")
+class WebDav(urlStr: String) {
     companion object {
         // 指定返回哪些属性
         private const val DIR =
@@ -32,7 +30,7 @@ constructor(urlStr: String) {
                 </a:propfind>"""
     }
 
-    private val url: URL = URL(null, urlStr, Handler)
+    private val url: URL = URL(urlStr)
     private val httpUrl: String? by lazy {
         val raw = url.toString().replace("davs://", "https://").replace("dav://", "http://")
         try {
@@ -45,25 +43,14 @@ constructor(urlStr: String) {
             return@lazy null
         }
     }
-
+    val host: String? get() = url.host
+    val path get() = url.toString()
     var displayName: String? = null
     var size: Long = 0
     var exists = false
     var parent = ""
     var urlName = ""
-        get() {
-            if (field.isEmpty()) {
-                this.urlName = (
-                        if (parent.isEmpty()) url.file
-                        else url.toString().replace(parent, "")
-                        ).replace("/", "")
-            }
-            return field
-        }
-
-    fun getPath() = url.toString()
-
-    fun getHost() = url.host
+    var contentType = ""
 
     /**
      * 填充文件信息。实例化WebDAVFile对象时，并没有将远程文件的信息填充到实例中。需要手动填充！
@@ -143,8 +130,8 @@ constructor(urlStr: String) {
         val list = ArrayList<WebDav>()
         val document = Jsoup.parse(s)
         val elements = document.getElementsByTag("d:response")
-        httpUrl?.let { url ->
-            val baseUrl = if (url.endsWith("/")) url else "$url/"
+        httpUrl?.let { urlStr ->
+            val baseUrl = if (urlStr.endsWith("/")) urlStr else "$urlStr/"
             for (element in elements) {
                 val href = element.getElementsByTag("d:href")[0].text()
                 if (!href.endsWith("/")) {
@@ -153,7 +140,16 @@ constructor(urlStr: String) {
                     try {
                         webDavFile = WebDav(baseUrl + fileName)
                         webDavFile.displayName = fileName
-                        webDavFile.urlName = href
+                        webDavFile.contentType = element
+                            .getElementsByTag("d:getcontenttype")
+                            .getOrNull(0)?.text() ?: ""
+                        if (href.isEmpty()) {
+                            webDavFile.urlName =
+                                if (parent.isEmpty()) url.file.replace("/", "")
+                                else url.toString().replace(parent, "").replace("/", "")
+                        } else {
+                            webDavFile.urlName = href
+                        }
                         list.add(webDavFile)
                     } catch (e: MalformedURLException) {
                         e.printStackTrace()
@@ -196,6 +192,11 @@ constructor(urlStr: String) {
         return true
     }
 
+    fun download(): ByteArray? {
+        val inputS = getInputStream() ?: return null
+        return inputS.readBytes()
+    }
+
     /**
      * 上传文件
      */
@@ -206,6 +207,19 @@ constructor(urlStr: String) {
         val mediaType = contentType?.let { MediaType.parse(it) }
         // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
         val fileBody = RequestBody.create(mediaType, file)
+        httpUrl?.let {
+            val request = Request.Builder()
+                .url(it)
+                .put(fileBody)
+            return execRequest(request)
+        }
+        return false
+    }
+
+    fun upload(byteArray: ByteArray, contentType: String? = null): Boolean {
+        val mediaType = contentType?.let { MediaType.parse(it) }
+        // 务必注意RequestBody不要嵌套，不然上传时内容可能会被追加多余的文件信息
+        val fileBody = RequestBody.create(mediaType, byteArray)
         httpUrl?.let {
             val request = Request.Builder()
                 .url(it)

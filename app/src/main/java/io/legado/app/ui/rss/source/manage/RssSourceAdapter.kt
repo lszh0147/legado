@@ -1,79 +1,72 @@
 package io.legado.app.ui.rss.source.manage
 
 import android.content.Context
+import android.os.Bundle
 import android.view.View
+import android.view.ViewGroup
 import android.widget.PopupMenu
+import androidx.core.os.bundleOf
 import androidx.recyclerview.widget.RecyclerView
 import io.legado.app.R
 import io.legado.app.base.adapter.ItemViewHolder
 import io.legado.app.base.adapter.SimpleRecyclerAdapter
 import io.legado.app.data.entities.RssSource
-import io.legado.app.help.ItemTouchCallback
+import io.legado.app.databinding.ItemRssSourceBinding
 import io.legado.app.lib.theme.backgroundColor
-import kotlinx.android.synthetic.main.item_rss_source.view.*
+import io.legado.app.ui.widget.recycler.DragSelectTouchHelper
+import io.legado.app.ui.widget.recycler.ItemTouchCallback
 import org.jetbrains.anko.sdk27.listeners.onClick
 import java.util.*
 
 class RssSourceAdapter(context: Context, val callBack: CallBack) :
-    SimpleRecyclerAdapter<RssSource>(context, R.layout.item_rss_source),
-    ItemTouchCallback.OnItemTouchCallbackListener {
+    SimpleRecyclerAdapter<RssSource, ItemRssSourceBinding>(context),
+    ItemTouchCallback.Callback {
 
     private val selected = linkedSetOf<RssSource>()
 
-    fun selectAll() {
-        getItems().forEach {
-            selected.add(it)
-        }
-        notifyItemRangeChanged(0, itemCount, 1)
-        callBack.upCountView()
+    override fun getViewBinding(parent: ViewGroup): ItemRssSourceBinding {
+        return ItemRssSourceBinding.inflate(inflater, parent, false)
     }
 
-    fun revertSelection() {
-        getItems().forEach {
-            if (selected.contains(it)) {
-                selected.remove(it)
-            } else {
-                selected.add(it)
-            }
-        }
-        notifyItemRangeChanged(0, itemCount, 1)
-        callBack.upCountView()
-    }
-
-    fun getSelection(): List<RssSource> {
-        val selection = arrayListOf<RssSource>()
-        getItems().forEach {
-            if (selected.contains(it)) {
-                selection.add(it)
-            }
-        }
-        return selection.sortedBy { it.customOrder }
-    }
-
-    override fun convert(holder: ItemViewHolder, item: RssSource, payloads: MutableList<Any>) {
-        with(holder.itemView) {
-            if (payloads.isEmpty()) {
-                this.setBackgroundColor(context.backgroundColor)
+    override fun convert(
+        holder: ItemViewHolder,
+        binding: ItemRssSourceBinding,
+        item: RssSource,
+        payloads: MutableList<Any>
+    ) {
+        with(binding) {
+            val bundle = payloads.getOrNull(0) as? Bundle
+            if (bundle == null) {
+                root.setBackgroundColor(context.backgroundColor)
                 if (item.sourceGroup.isNullOrEmpty()) {
-                    cb_source.text = item.sourceName
+                    cbSource.text = item.sourceName
                 } else {
-                    cb_source.text =
+                    cbSource.text =
                         String.format("%s (%s)", item.sourceName, item.sourceGroup)
                 }
-                swt_enabled.isChecked = item.enabled
-                cb_source.isChecked = selected.contains(item)
+                swtEnabled.isChecked = item.enabled
+                cbSource.isChecked = selected.contains(item)
             } else {
-                when (payloads[0]) {
-                    1 -> cb_source.isChecked = selected.contains(item)
-                    2 -> swt_enabled.isChecked = item.enabled
+                bundle.keySet().map {
+                    when (it) {
+                        "name", "group" ->
+                            if (item.sourceGroup.isNullOrEmpty()) {
+                                cbSource.text = item.sourceName
+                            } else {
+                                cbSource.text =
+                                    String.format("%s (%s)", item.sourceName, item.sourceGroup)
+                            }
+                        "selected" -> cbSource.isChecked = selected.contains(item)
+                        "enabled" -> cbSource.isChecked = item.enabled
+                    }
                 }
             }
         }
     }
 
-    override fun registerListener(holder: ItemViewHolder) {
-        holder.itemView.apply {
-            swt_enabled.setOnCheckedChangeListener { view, checked ->
+    override fun registerListener(holder: ItemViewHolder, binding: ItemRssSourceBinding) {
+        binding.apply {
+            swtEnabled.setOnCheckedChangeListener { view, checked ->
                 getItem(holder.layoutPosition)?.let {
                     if (view.isPressed) {
                         it.enabled = checked
@@ -81,7 +74,7 @@ class RssSourceAdapter(context: Context, val callBack: CallBack) :
                     }
                 }
             }
-            cb_source.setOnCheckedChangeListener { view, checked ->
+            cbSource.setOnCheckedChangeListener { view, checked ->
                 getItem(holder.layoutPosition)?.let {
                     if (view.isPressed) {
                         if (checked) {
@@ -93,15 +86,45 @@ class RssSourceAdapter(context: Context, val callBack: CallBack) :
                     }
                 }
             }
-            iv_edit.onClick {
+            ivEdit.onClick {
                 getItem(holder.layoutPosition)?.let {
                     callBack.edit(it)
                 }
             }
-            iv_menu_more.onClick {
-                showMenu(iv_menu_more, holder.layoutPosition)
+            ivMenuMore.onClick {
+                showMenu(ivMenuMore, holder.layoutPosition)
             }
         }
+    }
+
+    fun selectAll() {
+        getItems().forEach {
+            selected.add(it)
+        }
+        notifyItemRangeChanged(0, itemCount, bundleOf(Pair("selected", null)))
+        callBack.upCountView()
+    }
+
+    fun revertSelection() {
+        getItems().forEach {
+            if (selected.contains(it)) {
+                selected.remove(it)
+            } else {
+                selected.add(it)
+            }
+        }
+        notifyItemRangeChanged(0, itemCount, bundleOf(Pair("selected", null)))
+        callBack.upCountView()
+    }
+
+    fun getSelection(): List<RssSource> {
+        val selection = arrayListOf<RssSource>()
+        getItems().forEach {
+            if (selected.contains(it)) {
+                selection.add(it)
+            }
+        }
+        return selection.sortedBy { it.customOrder }
     }
 
     private fun showMenu(view: View, position: Int) {
@@ -144,6 +167,32 @@ class RssSourceAdapter(context: Context, val callBack: CallBack) :
         if (movedItems.isNotEmpty()) {
             callBack.update(*movedItems.toTypedArray())
             movedItems.clear()
+        }
+    }
+
+    fun initDragSelectTouchHelperCallback(): DragSelectTouchHelper.Callback {
+        return object : DragSelectTouchHelper.AdvanceCallback<RssSource>(Mode.ToggleAndReverse) {
+            override fun currentSelectedId(): MutableSet<RssSource> {
+                return selected
+            }
+
+            override fun getItemId(position: Int): RssSource {
+                return getItem(position)!!
+            }
+
+            override fun updateSelectState(position: Int, isSelected: Boolean): Boolean {
+                getItem(position)?.let {
+                    if (isSelected) {
+                        selected.add(it)
+                    } else {
+                        selected.remove(it)
+                    }
+                    notifyItemChanged(position, bundleOf(Pair("selected", null)))
+                    callBack.upCountView()
+                    return true
+                }
+                return false
+            }
         }
     }
 

@@ -2,20 +2,21 @@ package io.legado.app.ui.book.search
 
 import android.app.Application
 import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.MutableLiveData
 import io.legado.app.App
 import io.legado.app.base.BaseViewModel
 import io.legado.app.constant.PreferKey
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.SearchKeyword
-import io.legado.app.model.SearchBookModel
+import io.legado.app.model.webBook.SearchBookModel
 import io.legado.app.utils.getPrefBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.isActive
 
 class SearchViewModel(application: Application) : BaseViewModel(application),
     SearchBookModel.CallBack {
-    val handler = Handler()
+    val handler = Handler(Looper.getMainLooper())
     private val searchBookModel = SearchBookModel(this, this)
     var isSearchLiveData = MutableLiveData<Boolean>()
     var searchBookLiveData = MutableLiveData<List<SearchBook>>()
@@ -30,12 +31,15 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
      * 开始搜索
      */
     fun search(key: String) {
-        if (searchKey != key && key.isNotEmpty()) {
+        if ((searchKey == key) || key.isNotEmpty()) {
             searchBookModel.cancelSearch()
             searchBooks.clear()
             searchBookLiveData.postValue(searchBooks)
             searchID = System.currentTimeMillis()
             searchKey = key
+        }
+        if (searchKey.isEmpty()) {
+            return
         }
         searchBookModel.search(searchID, searchKey)
     }
@@ -54,13 +58,14 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
 
     override fun onSearchStart() {
         isSearchLiveData.postValue(true)
+        isLoading = true
     }
 
     override fun onSearchSuccess(searchBooks: ArrayList<SearchBook>) {
         if (context.getPrefBoolean(PreferKey.precisionSearch)) {
             precisionSearch(this, searchBooks)
         } else {
-            App.db.searchBookDao().insert(*searchBooks.toTypedArray())
+            App.db.searchBookDao.insert(*searchBooks.toTypedArray())
             mergeItems(this, searchBooks)
         }
     }
@@ -85,7 +90,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
                 || searchBook.author.contains(searchKey, true)
             ) books.add(searchBook)
         }
-        App.db.searchBookDao().insert(*books.toTypedArray())
+        App.db.searchBookDao.insert(*books.toTypedArray())
         if (scope.isActive) {
             mergeItems(scope, books)
         }
@@ -110,7 +115,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
                             && item.author == searchBook.author
                         ) {
                             hasSame = true
-                            searchBook.addOrigin(item.bookUrl)
+                            searchBook.addOrigin(item.origin)
                             break
                         }
                     }
@@ -140,7 +145,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
                 }
             }
             if (!scope.isActive) return
-            searchBooks.sortWith(Comparator { o1, o2 ->
+            searchBooks.sortWith { o1, o2 ->
                 if (o1.name == searchKey && o2.name != searchKey) {
                     1
                 } else if (o1.name != searchKey && o2.name == searchKey) {
@@ -164,7 +169,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
                 } else {
                     0
                 }
-            })
+            }
             if (!scope.isActive) return
             searchBooks = copyDataS
             upAdapter()
@@ -183,7 +188,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
      */
     fun getSearchBook(name: String, author: String, success: ((searchBook: SearchBook?) -> Unit)?) {
         execute {
-            val searchBook = App.db.searchBookDao().getFirstByNameAuthor(name, author)
+            val searchBook = App.db.searchBookDao.getFirstByNameAuthor(name, author)
             success?.invoke(searchBook)
         }
     }
@@ -193,10 +198,10 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
      */
     fun saveSearchKey(key: String) {
         execute {
-            App.db.searchKeywordDao().get(key)?.let {
+            App.db.searchKeywordDao.get(key)?.let {
                 it.usage = it.usage + 1
-                App.db.searchKeywordDao().update(it)
-            } ?: App.db.searchKeywordDao().insert(SearchKeyword(key, 1))
+                App.db.searchKeywordDao.update(it)
+            } ?: App.db.searchKeywordDao.insert(SearchKeyword(key, 1))
         }
     }
 
@@ -205,7 +210,7 @@ class SearchViewModel(application: Application) : BaseViewModel(application),
      */
     fun clearHistory() {
         execute {
-            App.db.searchKeywordDao().deleteAll()
+            App.db.searchKeywordDao.deleteAll()
         }
     }
 

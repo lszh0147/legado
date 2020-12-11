@@ -1,11 +1,11 @@
 package io.legado.app.model.localBook
 
-import android.content.Context
 import android.net.Uri
 import io.legado.app.App
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.TxtTocRule
+import io.legado.app.help.DefaultData
 import io.legado.app.utils.*
 import java.io.File
 import java.io.RandomAccessFile
@@ -19,9 +19,11 @@ class AnalyzeTxtFile {
     private lateinit var charset: Charset
 
     @Throws(Exception::class)
-    fun analyze(context: Context, book: Book): ArrayList<BookChapter> {
-        val bookFile = getBookFile(context, book)
-        book.charset = EncodingDetect.getEncode(bookFile)
+    fun analyze(book: Book): ArrayList<BookChapter> {
+        val bookFile = getBookFile(book)
+        if (book.charset == null) {
+            book.charset = EncodingDetect.getEncode(bookFile)
+        }
         charset = book.fileCharset()
         val rulePattern = if (book.tocUrl.isNotEmpty()) {
             Pattern.compile(book.tocUrl, Pattern.MULTILINE)
@@ -205,7 +207,7 @@ class AnalyzeTxtFile {
             val bean = toc[i]
             bean.index = i
             bean.bookUrl = book.bookUrl
-            bean.url = (MD5Utils.md5Encode16(book.originName + i + bean.title) ?: "")
+            bean.url = (MD5Utils.md5Encode16(book.originName + i + bean.title))
         }
         book.latestChapterTitle = toc.last().title
         book.totalChapterNum = toc.size
@@ -237,7 +239,7 @@ class AnalyzeTxtFile {
     }
 
     companion object {
-        private const val folderName = "bookTxt"
+
         private const val BLANK: Byte = 0x0a
 
         //默认从文件中获取数据的长度
@@ -245,30 +247,26 @@ class AnalyzeTxtFile {
 
         //没有标题的时候，每个章节的最大长度
         private const val MAX_LENGTH_WITH_NO_CHAPTER = 10 * 1024
-        val cacheFolder: File by lazy {
-            val rootFile = App.INSTANCE.getExternalFilesDir(null)
-                ?: App.INSTANCE.externalCacheDir
-                ?: App.INSTANCE.cacheDir
-            FileUtils.createFolderIfNotExist(rootFile, subDirs = *arrayOf(folderName))
-        }
 
         fun getContent(book: Book, bookChapter: BookChapter): String {
-            val bookFile = getBookFile(App.INSTANCE, book)
+            val bookFile = getBookFile(book)
             //获取文件流
             val bookStream = RandomAccessFile(bookFile, "r")
             val content = ByteArray((bookChapter.end!! - bookChapter.start!!).toInt())
             bookStream.seek(bookChapter.start!!)
             bookStream.read(content)
             return String(content, book.fileCharset())
+                .substringAfter(bookChapter.title)
+                .replace("^[\\n\\s]+".toRegex(), "　　")
         }
 
-        private fun getBookFile(context: Context, book: Book): File {
-            if (book.bookUrl.isContentPath()) {
+        private fun getBookFile(book: Book): File {
+            if (book.bookUrl.isContentScheme()) {
                 val uri = Uri.parse(book.bookUrl)
-                val bookFile = FileUtils.getFile(cacheFolder, book.originName, subDirs = *arrayOf())
+                val bookFile = FileUtils.getFile(LocalBook.cacheFolder, book.originName)
                 if (!bookFile.exists()) {
                     bookFile.createNewFile()
-                    DocumentUtils.readBytes(context, uri)?.let {
+                    DocumentUtils.readBytes(App.INSTANCE, uri)?.let {
                         bookFile.writeBytes(it)
                     }
                 }
@@ -278,24 +276,17 @@ class AnalyzeTxtFile {
         }
 
         private fun getTocRules(): List<TxtTocRule> {
-            val rules = App.db.txtTocRule().enabled
+            var rules = App.db.txtTocRule.enabled
             if (rules.isEmpty()) {
-                return getDefaultEnabledRules()
+                rules = DefaultData.txtTocRules.apply {
+                    App.db.txtTocRule.insert(*this.toTypedArray())
+                }.filter {
+                    it.enable
+                }
             }
             return rules
         }
 
-        fun getDefaultEnabledRules(): List<TxtTocRule> {
-            App.INSTANCE.assets.open("txtTocRule.json").readBytes().let { byteArray ->
-                GSON.fromJsonArray<TxtTocRule>(String(byteArray))?.let { txtTocRules ->
-                    App.db.txtTocRule().insert(*txtTocRules.toTypedArray())
-                    return txtTocRules.filter {
-                        it.enable
-                    }
-                }
-            }
-            return emptyList()
-        }
     }
 
 }

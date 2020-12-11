@@ -1,23 +1,21 @@
 package io.legado.app.ui.book.read.config
 
+import android.annotation.SuppressLint
+import android.content.DialogInterface
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.util.DisplayMetrics
-import android.view.Gravity
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.LinearLayout
 import androidx.fragment.app.DialogFragment
 import androidx.preference.Preference
-import androidx.preference.PreferenceFragmentCompat
 import io.legado.app.R
+import io.legado.app.base.BasePreferenceFragment
 import io.legado.app.constant.EventBus
 import io.legado.app.constant.PreferKey
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.lib.theme.ATH
 import io.legado.app.lib.theme.bottomBackground
-import io.legado.app.ui.book.read.Help
+import io.legado.app.ui.book.read.ReadBookActivity
 import io.legado.app.utils.dp
 import io.legado.app.utils.getPrefBoolean
 import io.legado.app.utils.postEvent
@@ -27,12 +25,8 @@ class MoreConfigDialog : DialogFragment() {
 
     override fun onStart() {
         super.onStart()
-        val dm = DisplayMetrics()
-        activity?.let {
-            Help.upSystemUiVisibility(it)
-            it.windowManager?.defaultDisplay?.getMetrics(dm)
-        }
         dialog?.window?.let {
+            it.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             it.setBackgroundDrawableResource(R.color.background)
             it.decorView.setPadding(0, 0, 0, 0)
             val attr = it.attributes
@@ -48,6 +42,7 @@ class MoreConfigDialog : DialogFragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
+        (activity as ReadBookActivity).bottomDialog++
         val view = LinearLayout(context)
         view.setBackgroundColor(requireContext().bottomBackground)
         view.id = R.id.tag1
@@ -64,9 +59,15 @@ class MoreConfigDialog : DialogFragment() {
             .commit()
     }
 
-    class ReadPreferenceFragment : PreferenceFragmentCompat(),
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        (activity as ReadBookActivity).bottomDialog--
+    }
+
+    class ReadPreferenceFragment : BasePreferenceFragment(),
         SharedPreferences.OnSharedPreferenceChangeListener {
 
+        @SuppressLint("RestrictedApi")
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             addPreferencesFromResource(R.xml.pref_config_read)
         }
@@ -107,12 +108,14 @@ class MoreConfigDialog : DialogFragment() {
                 PreferKey.keepLight -> postEvent(key, true)
                 PreferKey.textSelectAble -> postEvent(key, getPrefBoolean(key,true))
                 getString(R.string.pk_requested_direction) -> {
-                    activity?.let {
-                        Help.setOrientation(it)
-                    }
+                    (activity as? ReadBookActivity)?.setOrientation()
                 }
-                PreferKey.textFullJustify -> {
+                PreferKey.textFullJustify,
+                PreferKey.textBottomJustify -> {
                     postEvent(EventBus.UP_CONFIG, true)
+                }
+                PreferKey.showBrightnessView -> {
+                    postEvent(PreferKey.showBrightnessView, "")
                 }
             }
         }
@@ -120,6 +123,9 @@ class MoreConfigDialog : DialogFragment() {
         override fun onPreferenceTreeClick(preference: Preference?): Boolean {
             when (preference?.key) {
                 "customPageKey" -> PageKeyDialog(requireContext()).show()
+                "clickRegionalConfig" -> {
+                    (activity as? ReadBookActivity)?.showClickRegionalConfig()
+                }
             }
             return super.onPreferenceTreeClick(preference)
         }

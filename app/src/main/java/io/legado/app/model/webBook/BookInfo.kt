@@ -2,12 +2,13 @@ package io.legado.app.model.webBook
 
 import io.legado.app.App
 import io.legado.app.R
-import io.legado.app.constant.AppPattern
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookSource
+import io.legado.app.help.BookHelp
 import io.legado.app.model.Debug
 import io.legado.app.model.analyzeRule.AnalyzeRule
 import io.legado.app.utils.NetworkUtils
+import io.legado.app.utils.StringUtils.wordCountFormat
 import io.legado.app.utils.htmlFormat
 
 object BookInfo {
@@ -17,7 +18,8 @@ object BookInfo {
         book: Book,
         body: String?,
         bookSource: BookSource,
-        baseUrl: String
+        baseUrl: String,
+        canReName: Boolean,
     ) {
         body ?: throw Exception(
             App.INSTANCE.getString(R.string.error_get_web_content, baseUrl)
@@ -25,23 +27,28 @@ object BookInfo {
         Debug.log(bookSource.bookSourceUrl, "≡获取成功:${baseUrl}")
         val infoRule = bookSource.getBookInfoRule()
         val analyzeRule = AnalyzeRule(book)
-        analyzeRule.setContent(body, baseUrl)
+        analyzeRule.setContent(body).setBaseUrl(baseUrl)
         infoRule.init?.let {
-            if (it.isNotEmpty()) {
+            if (it.isNotBlank()) {
                 Debug.log(bookSource.bookSourceUrl, "≡执行详情页初始化规则")
                 analyzeRule.setContent(analyzeRule.getElement(it))
             }
         }
+        val mCanReName = canReName && !infoRule.canReName.isNullOrBlank()
         Debug.log(bookSource.bookSourceUrl, "┌获取书名")
-        analyzeRule.getString(infoRule.name).let {
-            if (it.isNotEmpty()) book.name = it
+        BookHelp.formatBookName(analyzeRule.getString(infoRule.name)).let {
+            if (it.isNotEmpty() && (mCanReName || book.name.isEmpty())) {
+                book.name = it
+            }
+            Debug.log(bookSource.bookSourceUrl, "└${it}")
         }
-        Debug.log(bookSource.bookSourceUrl, "└${book.name}")
         Debug.log(bookSource.bookSourceUrl, "┌获取作者")
-        analyzeRule.getString(infoRule.author).let {
-            if (it.isNotEmpty()) book.author = it.replace(AppPattern.authorRegex, "")
+        BookHelp.formatBookAuthor(analyzeRule.getString(infoRule.author)).let {
+            if (it.isNotEmpty() && (mCanReName || book.author.isEmpty())) {
+                book.author = it
+            }
+            Debug.log(bookSource.bookSourceUrl, "└${it}")
         }
-        Debug.log(bookSource.bookSourceUrl, "└${book.author}")
         Debug.log(bookSource.bookSourceUrl, "┌获取分类")
         analyzeRule.getStringList(infoRule.kind)
             ?.joinToString(",")
@@ -50,7 +57,7 @@ object BookInfo {
             }
         Debug.log(bookSource.bookSourceUrl, "└${book.kind}")
         Debug.log(bookSource.bookSourceUrl, "┌获取字数")
-        analyzeRule.getString(infoRule.wordCount).let {
+        wordCountFormat(analyzeRule.getString(infoRule.wordCount)).let {
             if (it.isNotEmpty()) book.wordCount = it
         }
         Debug.log(bookSource.bookSourceUrl, "└${book.wordCount}")
