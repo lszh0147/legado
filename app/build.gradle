@@ -3,7 +3,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'kotlin-parcelize'
 apply plugin: 'kotlin-kapt'
 apply plugin: 'de.timfreiheit.resourceplaceholders'
-apply plugin: 'com.google.firebase.crashlytics'
+//apply plugin: 'com.google.firebase.crashlytics'
 
 static def releaseTime() {
     return new Date().format("yy.MMddHH", TimeZone.getTimeZone("GMT+8"))
@@ -114,8 +114,8 @@ android {
         }
         android.applicationVariants.all { variant ->
             variant.outputs.all {
-                def flavor = variant.productFlavors[0].name
-                outputFileName = "${name}_${flavor}_${defaultConfig.versionName}.apk"
+//                def flavor = variant.productFlavors[0].name
+                outputFileName = "${name}_${defaultConfig.versionName}.apk"
             }
         }
     }
@@ -178,6 +178,7 @@ dependencies {
     implementation 'com.google.android.material:material:1.2.1'
     implementation 'com.google.android:flexbox:1.1.0'
     implementation 'com.google.code.gson:gson:2.8.6'
+    implementation 'androidx.documentfile:documentfile:1.0.0'
 
     //lifecycle
     def lifecycle_version = '2.2.0'
