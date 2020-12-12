@@ -1,4 +1,4 @@
-package io.legado.app.help.http
+package io.legado.app.help.http.parser
 
 import io.legado.app.utils.EncodingDetect
 import io.legado.app.utils.UTF8BOMFighter
@@ -12,7 +12,7 @@ class TextParser(val encode: String? = null) : rxhttp.wrapper.parse.Parser<Strin
 
     override fun onParse(response: Response): String {
 
-        val responseBody = response.body() ?: throw HttpStatusCodeException(response, "内容为空")
+        val responseBody = response.body ?: throw HttpStatusCodeException(response, "内容为空")
         val responseBytes = UTF8BOMFighter.removeUTF8BOM(responseBody.bytes())
         var charsetName: String? = encode
 
