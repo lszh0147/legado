@@ -20,10 +20,10 @@ import io.legado.app.constant.PreferKey
 import io.legado.app.constant.Status
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
+import io.legado.app.data.entities.BookProgress
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.help.ReadTipConfig
 import io.legado.app.help.storage.Backup
-import io.legado.app.help.storage.BookWebDav
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.lib.theme.accentColor
 import io.legado.app.receiver.TimeBatteryReceiver
@@ -138,9 +138,7 @@ class ReadBookActivity : ReadBookBaseActivity(),
         }
         upSystemUiVisibility()
         if (!BuildConfig.DEBUG) {
-            ReadBook.book?.let {
-                BookWebDav.uploadBookProgress(it)
-            }
+            ReadBook.uploadProgress()
             Backup.autoBack(this)
         }
     }
@@ -198,7 +196,6 @@ class ReadBookActivity : ReadBookBaseActivity(),
                 }
             }
             R.id.menu_download -> showDownloadDialog()
-            R.id.menu_add_bookmark -> showBookMark()
             R.id.menu_copy_text ->
                 TextDialog.show(supportFragmentManager, ReadBook.curTextChapter?.getContent())
             R.id.menu_update_toc -> ReadBook.book?.let {
@@ -218,10 +215,7 @@ class ReadBookActivity : ReadBookBaseActivity(),
                 binding.readView.upPageAnim()
             }
             R.id.menu_book_info -> ReadBook.book?.let {
-                startActivity<BookInfoActivity>(
-                    Pair("name", it.name),
-                    Pair("author", it.author)
-                )
+                startActivity<BookInfoActivity>(Pair("name", it.name), Pair("author", it.author))
             }
             R.id.menu_toc_regex -> TocRegexDialog.show(
                 supportFragmentManager,
@@ -235,7 +229,9 @@ class ReadBookActivity : ReadBookBaseActivity(),
             }
             R.id.menu_set_charset -> showCharsetConfig()
             R.id.menu_get_progress -> ReadBook.book?.let {
-                viewModel.syncBookProgress(it)
+                viewModel.syncBookProgress(it) { progress ->
+                    sureSyncProgress(progress)
+                }
             }
             R.id.menu_help -> showReadMenuHelp()
         }
@@ -432,6 +428,15 @@ class ReadBookActivity : ReadBookBaseActivity(),
      */
     override fun onMenuItemSelected(itemId: Int): Boolean {
         when (itemId) {
+            R.id.menu_bookmark -> binding.readView.curPage.let {
+                val bookmark = it.createBookmark()
+                if (bookmark == null) {
+                    toast(R.string.create_bookmark_error)
+                } else {
+                    showBookMark(bookmark)
+                }
+                return true
+            }
             R.id.menu_replace -> {
                 val scopes = arrayListOf<String>()
                 ReadBook.book?.name?.let {
@@ -613,7 +618,9 @@ class ReadBookActivity : ReadBookBaseActivity(),
             autoPageProgress += scrollOffset
             if (autoPageProgress >= binding.readView.height) {
                 autoPageProgress = 0
-                binding.readView.fillPage(PageDirection.NEXT)
+                if (!binding.readView.fillPage(PageDirection.NEXT)) {
+                    autoPageStop()
+                }
             } else {
                 binding.readView.invalidate()
             }
@@ -730,6 +737,16 @@ class ReadBookActivity : ReadBookBaseActivity(),
         }
     }
 
+    private fun sureSyncProgress(progress: BookProgress) {
+        alert(R.string.get_book_progress) {
+            message = getString(R.string.current_progress_exceeds_cloud)
+            okButton {
+                ReadBook.setProgress(progress)
+            }
+            noButton()
+        }.show()
+    }
+
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode == Activity.RESULT_OK) {
@@ -738,8 +755,8 @@ class ReadBookActivity : ReadBookBaseActivity(),
                 requestCodeChapterList ->
                     data?.getIntExtra("index", ReadBook.durChapterIndex)?.let { index ->
                         if (index != ReadBook.durChapterIndex) {
-                            val pageIndex = data.getIntExtra("pageIndex", 0)
-                            viewModel.openChapter(index, pageIndex)
+                            val chapterPos = data.getIntExtra("chapterPos", 0)
+                            viewModel.openChapter(index, chapterPos)
                         }
                     }
                 requestCodeSearchResult ->
@@ -841,7 +858,6 @@ class ReadBookActivity : ReadBookBaseActivity(),
         observeEvent<Boolean>(EventBus.UP_CONFIG) {
             upSystemUiVisibility()
             readView.upBg()
-            readView.upTipStyle()
             readView.upStyle()
             if (it) {
                 ReadBook.loadContent(resetPageOffset = false)
