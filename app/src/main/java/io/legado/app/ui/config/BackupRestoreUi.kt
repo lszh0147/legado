@@ -80,7 +80,7 @@ object BackupRestoreUi {
             BookWebDav.showRestoreDialog(fragment.requireContext())
         }.onError {
             fragment.longToast("WebDavError:${it.localizedMessage}\n将从本地备份恢复。")
-            val backupPath = fragment.getPrefString(PreferKey.backupPath)
+            val backupPath = AppConfig.backupPath
             if (backupPath?.isNotEmpty() == true) {
                 if (backupPath.isContentScheme()) {
                     val uri = Uri.parse(backupPath)

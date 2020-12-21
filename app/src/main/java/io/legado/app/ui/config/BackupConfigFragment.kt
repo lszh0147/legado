@@ -14,6 +14,7 @@ import androidx.preference.Preference
 import io.legado.app.R
 import io.legado.app.base.BasePreferenceFragment
 import io.legado.app.constant.PreferKey
+import io.legado.app.help.AppConfig
 import io.legado.app.help.LocalConfig
 import io.legado.app.help.storage.Restore
 import io.legado.app.lib.dialogs.alert
@@ -51,7 +52,7 @@ class BackupConfigFragment : BasePreferenceFragment(),
         upPreferenceSummary(PreferKey.webDavUrl, getPrefString(PreferKey.webDavUrl))
         upPreferenceSummary(PreferKey.webDavAccount, getPrefString(PreferKey.webDavAccount))
         upPreferenceSummary(PreferKey.webDavPassword, getPrefString(PreferKey.webDavPassword))
-        upPreferenceSummary(PreferKey.backupPath, getPrefString(PreferKey.backupPath))
+        upPreferenceSummary(PreferKey.backupPath, AppConfig.backupPath)
         findPreference<io.legado.app.ui.widget.prefs.Preference>("web_dav_restore")
             ?.onLongClick = { BackupRestoreUi.restoreByFolder(this) }
     }

@@ -83,7 +83,7 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         get() = context.getPrefString(PreferKey.screenOrientation)
 
     var backupPath: String?
-        get() = context.getPrefString(PreferKey.backupPath)
+        get() = context.getPrefString(PreferKey.backupPath,"/sdcard/Android/AppData/Yuedu3.0")
         set(value) {
             if (value.isNullOrEmpty()) {
                 context.removePref(PreferKey.backupPath)

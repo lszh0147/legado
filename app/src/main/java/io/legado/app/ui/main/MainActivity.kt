@@ -1,9 +1,14 @@
 package io.legado.app.ui.main
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MenuItem
 import android.view.ViewGroup
+import android.widget.Toast
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentStatePagerAdapter
@@ -47,6 +52,64 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
     private var pagePosition = 0
     private val fragmentMap = hashMapOf<Int, Fragment>()
 
+    var permission = arrayOf<String>(
+        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+        Manifest.permission.READ_EXTERNAL_STORAGE
+    )
+    private fun checkPermission() {
+        for (i in 0 until permission.size) {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    permission[i]
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                mPermissionList.add(permission[i])
+            }
+        }
+        if (!mPermissionList.isEmpty()) {
+            //代表有权限未授予，申请权限
+            val permissions =
+                mPermissionList.toTypedArray()
+            ActivityCompat.requestPermissions(this, permissions, 1)
+        } else {
+            //这里表示所有权限都授予了
+            //do someing
+        }
+    }
+    var mPermissionList: ArrayList<String> = ArrayList()
+    var hasPermission = true
+
+//    //结果回调
+//    override fun onRequestPermissionsResult(
+//        requestCode: Int,
+//        @NonNull permissions: Array<String?>,
+//        @NonNull grantResults: IntArray
+//    ) {
+//        if (requestCode == 1) {
+//            var hasAllPermision = true //判断是否拥有所有权限
+//            for (i in grantResults.indices) {
+//                if (grantResults[i] != PackageManager.PERMISSION_GRANTED) { //用户拒绝授权的权限
+//                    //判断是否勾选禁止后不再询问
+//                    val showRequestPermission =
+//                        ActivityCompat.shouldShowRequestPermissionRationale(
+//                            this,
+//                            permissions[i]!!
+//                        )
+//                    if (!showRequestPermission) {
+////                        Toast.makeText(MainActivity.this, "禁止后不再询问", Toast.LENGTH_SHORT).show();
+//                        hasAllPermision = false
+//                    }
+//                    hasPermission = false
+//                }
+//            }
+//            if (!hasAllPermision) { //用户拒绝了一些权限，且是禁止后不再询问
+//                hasPermission = false
+//                Toast.makeText(this, "缺少必要权限 你选择了禁止后不再询问，请主动授予 。", Toast.LENGTH_SHORT).show()
+//            }
+//        }
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//    }
+
     override fun getViewBinding(): ActivityMainBinding {
         return ActivityMainBinding.inflate(layoutInflater)
     }
@@ -62,6 +125,7 @@ class MainActivity : VMBaseActivity<ActivityMainBinding, MainViewModel>(),
         bottomNavigationView.setOnNavigationItemSelectedListener(this@MainActivity)
         bottomNavigationView.setOnNavigationItemReselectedListener(this@MainActivity)
         bottomNavigationView.menu.findItem(R.id.menu_rss).isVisible = AppConfig.isShowRSS
+        checkPermission()
     }
 
     override fun onPostCreate(savedInstanceState: Bundle?) {
