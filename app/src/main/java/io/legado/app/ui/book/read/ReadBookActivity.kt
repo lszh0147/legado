@@ -21,6 +21,7 @@ import io.legado.app.constant.Status
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookProgress
+import io.legado.app.data.entities.Bookmark
 import io.legado.app.help.ReadBookConfig
 import io.legado.app.help.ReadTipConfig
 import io.legado.app.help.storage.Backup
@@ -70,6 +71,7 @@ class ReadBookActivity : ReadBookBaseActivity(),
     AutoReadDialog.CallBack,
     TocRegexDialog.CallBack,
     ColorPickerDialogListener {
+
     private val requestCodeChapterList = 568
     private val requestCodeReplace = 312
     private val requestCodeSearchResult = 123
@@ -154,6 +156,9 @@ class ReadBookActivity : ReadBookBaseActivity(),
         return super.onPrepareOptionsMenu(menu)
     }
 
+    /**
+     * 更新菜单
+     */
     private fun upMenu() {
         val menu = menu
         val book = ReadBook.book
@@ -189,13 +194,32 @@ class ReadBookActivity : ReadBookBaseActivity(),
                 }
             }
             R.id.menu_refresh -> {
-                ReadBook.book?.let {
-                    ReadBook.curTextChapter = null
-                    binding.readView.upContent()
-                    viewModel.refreshContent(it)
+                if (ReadBook.bookSource == null) {
+                    upContent()
+                } else {
+                    ReadBook.book?.let {
+                        ReadBook.curTextChapter = null
+                        binding.readView.upContent()
+                        viewModel.refreshContent(it)
+                    }
                 }
             }
             R.id.menu_download -> showDownloadDialog()
+            R.id.menu_add_bookmark -> {
+                val book = ReadBook.book
+                val page = ReadBook.curTextChapter?.page(ReadBook.durPageIndex())
+                if (book != null && page != null) {
+                    val bookmark = Bookmark(
+                        bookUrl = book.bookUrl,
+                        bookName = book.name,
+                        chapterIndex = ReadBook.durChapterIndex,
+                        chapterPos = ReadBook.durChapterPos,
+                        chapterName = page.title,
+                        bookText = page.text.trim()
+                    )
+                    showBookMark(bookmark)
+                }
+            }
             R.id.menu_copy_text ->
                 TextDialog.show(supportFragmentManager, ReadBook.curTextChapter?.getContent())
             R.id.menu_update_toc -> ReadBook.book?.let {
