@@ -47,22 +47,28 @@ object LocalConfig {
     }
 
     val readHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "readHelpVersion", "firstRead")
+        get() = true
+//        get() = isLastVersion(1, "readHelpVersion", "firstRead")
 
     val backupHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "backupHelpVersion", "firstBackup")
+        get() = true
+//        get() = isLastVersion(1, "backupHelpVersion", "firstBackup")
 
     val readMenuHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "readMenuHelpVersion", "firstReadMenu")
+        get() = true
+//        get() = isLastVersion(1, "readMenuHelpVersion", "firstReadMenu")
 
     val bookSourcesHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "bookSourceHelpVersion", "firstOpenBookSources")
+        get() = true
+//        get() = isLastVersion(1, "bookSourceHelpVersion", "firstOpenBookSources")
 
     val debugHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "debugHelpVersion")
+        get() = true
+//        get() = isLastVersion(1, "debugHelpVersion")
 
     val ruleHelpVersionIsLast: Boolean
-        get() = isLastVersion(1, "ruleHelpVersion")
+        get() = true
+//        get() = isLastVersion(1, "ruleHelpVersion")
 
     val hasUpHttpTTS: Boolean
         get() = isLastVersion(1, "httpTtsVersion")
